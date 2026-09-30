@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // keep the Firebase Admin SDK as a plain Node dependency in serverless functions
+  serverExternalPackages: ["firebase-admin", "nodemailer"],
 };
 
 export default nextConfig;
