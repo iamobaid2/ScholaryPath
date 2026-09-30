@@ -1,0 +1,10 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Clients upload into their own folder only; files are read by admins via signed URLs.
+    match /orders/{uid}/{orderId}/{file} {
+      allow create: if request.auth != null && request.auth.uid == uid && request.resource.size < 25 * 1024 * 1024;
+      allow read: if request.auth != null && request.auth.uid == uid;
+    }
+  }
+}
