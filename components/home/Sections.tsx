@@ -102,7 +102,7 @@ export function FaqSection() {
 export function FinalCta() {
   const { openDiscount, cfg } = useShop();
   return (
-    <section className="mx-auto max-w-6xl px-4">
+    <section className="mx-auto max-w-6xl px-4 pb-20 sm:px-6">
       <Reveal>
         <div className="relative overflow-hidden rounded-2xl bg-brand p-10 text-center text-on-brand md:p-14">
           <h2 className="text-3xl font-semibold sm:text-4xl">Ready to see your price?</h2>

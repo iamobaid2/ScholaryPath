@@ -8,7 +8,7 @@ import { waLink } from "@/lib/whatsapp";
 export default function Footer() {
   const { user } = useAuth();
   return (
-    <footer className="mt-24 border-t border-line bg-surface">
+    <footer className="mt-0 border-t border-line bg-surface">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 md:grid-cols-3">
         <div>
           <Logo />

@@ -5,6 +5,7 @@ import { FileText, X } from "lucide-react";
 import RequireAuth from "@/components/RequireAuth";
 import OrderTimeline from "@/components/OrderTimeline";
 import StatusBadge from "@/components/StatusBadge";
+import Loader from "@/components/Loader";
 import { useAuth } from "@/components/Providers";
 import { api } from "@/lib/api";
 import { formatAmount } from "@/lib/pricing";
@@ -112,7 +113,7 @@ function PricingTab() {
   const [c, setC] = useState<PricingConfig | null>(null);
   const [msg, setMsg] = useState("");
   useEffect(() => { token().then((t) => api<{ config: PricingConfig }>("/api/admin/pricing", t)).then((d) => setC(d.config)).catch((e) => setMsg(e.message)); }, [token]);
-  if (!c) return <p className="text-muted">{msg || "Loading…"}</p>;
+  if (!c) return msg ? <p className="text-danger">{msg}</p> : <Loader variant="inline" label="Loading prices" />;
 
   const up = (fn: (d: PricingConfig) => void) => { const d = structuredClone(c); fn(d); setC(d); };
   async function save() {
@@ -151,7 +152,7 @@ function PricingTab() {
 function Admin() {
   const { isAdmin, loading } = useAuth();
   const [tab, setTab] = useState<"orders" | "pricing">("orders");
-  if (loading) return null;
+  if (loading) return <Loader />;
   if (!isAdmin) return <div className="mx-auto max-w-md px-4 py-24 text-center text-muted">This area is for ScholaryPath admins. If that&apos;s you, add your email to <code>ADMIN_EMAILS</code> and sign in with it.</div>;
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">

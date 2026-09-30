@@ -8,6 +8,7 @@ import { ArrowLeft, CheckCircle2, CreditCard, FileText } from "lucide-react";
 import RequireAuth from "@/components/RequireAuth";
 import OrderTimeline from "@/components/OrderTimeline";
 import StatusBadge from "@/components/StatusBadge";
+import Loader from "@/components/Loader";
 import { useAuth } from "@/components/Providers";
 import { api } from "@/lib/api";
 import { formatAmount } from "@/lib/pricing";
@@ -41,7 +42,7 @@ function Detail() {
   }
 
   if (err && !o) return <div className="mx-auto max-w-xl px-4 py-24 text-center"><p className="text-danger">{err}</p><Link href="/dashboard" className="btn btn-ghost mt-4">Back to orders</Link></div>;
-  if (!o) return <div className="px-4 py-24 text-center text-muted">Loading…</div>;
+  if (!o) return <Loader />;
 
   const rows: [string, string][] = [
     ["Service", o.serviceLabel], ["Level", o.levelLabel], ["Subject", o.selection.course],
@@ -93,4 +94,4 @@ function Detail() {
   );
 }
 
-export default function Page() { return <RequireAuth><Suspense><Detail /></Suspense></RequireAuth>; }
+export default function Page() { return <RequireAuth><Suspense fallback={<Loader />}><Detail /></Suspense></RequireAuth>; }

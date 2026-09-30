@@ -6,6 +6,7 @@ import { motion } from "motion/react";
 import { FileText, Mail, Paperclip, X } from "lucide-react";
 import { ref, uploadBytes } from "firebase/storage";
 import AuthForm from "../AuthForm";
+import Loader from "../Loader";
 import CountrySelect from "../ui/CountrySelect";
 import PhoneInput from "../ui/PhoneInput";
 import useRegion from "../ui/useRegion";
@@ -109,7 +110,7 @@ export default function BookingStep({ sel, q }: { sel: Selection; q: Quote }) {
     </div>
   );
 
-  if (loading) return <p className="text-muted">Loading…</p>;
+  if (loading) return <Loader variant="inline" />;
 
   if (!user)
     return (

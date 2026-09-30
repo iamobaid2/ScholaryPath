@@ -8,6 +8,7 @@ import Navbar from "./Navbar";
 import Footer from "./Footer";
 import WhatsAppFloat from "./WhatsAppFloat";
 import DiscountModal from "./DiscountModal";
+import Loader from "./Loader";
 
 /**
  * Role-based routing (client side; the API routes enforce the same rules on the server):
@@ -41,7 +42,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => { if (target) router.replace(target); }, [target, router]);
 
-  if (wait || target) return <div className="grid min-h-screen place-items-center text-sm text-muted">Loading…</div>;
+  if (wait || target) return <Loader variant="screen" />;
 
   return (
     <>

@@ -5,6 +5,7 @@ import { motion } from "motion/react";
 import { ArrowRight, Inbox } from "lucide-react";
 import RequireAuth from "@/components/RequireAuth";
 import StatusBadge from "@/components/StatusBadge";
+import Loader from "@/components/Loader";
 import { useAuth } from "@/components/Providers";
 import { api } from "@/lib/api";
 import type { Order } from "@/lib/types";
@@ -28,7 +29,7 @@ function Orders() {
         <Link href="/quote" className="btn btn-primary">New quote</Link>
       </div>
       {err && <p className="mt-6 text-danger">{err}</p>}
-      {!orders && !err && <div className="mt-8 space-y-3">{[0, 1].map((i) => <div key={i} className="card h-24 animate-pulse" />)}</div>}
+      {!orders && !err && <Loader variant="inline" label="Loading your orders" />}
       {orders && orders.length === 0 && (
         <div className="card mt-8 grid place-items-center gap-3 p-12 text-center"><Inbox className="text-muted" size={32} /><p className="text-muted">No orders yet.</p><Link href="/quote" className="btn btn-primary">Get your first quote</Link></div>
       )}
