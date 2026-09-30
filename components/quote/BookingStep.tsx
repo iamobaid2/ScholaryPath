@@ -1,11 +1,16 @@
 "use client";
 import WhatsAppIcon from "../WhatsAppIcon";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "motion/react";
 import { FileText, Mail, Paperclip, X } from "lucide-react";
 import { ref, uploadBytes } from "firebase/storage";
 import AuthForm from "../AuthForm";
+import CountrySelect from "../ui/CountrySelect";
+import PhoneInput from "../ui/PhoneInput";
+import useRegion from "../ui/useRegion";
+import { countryByIso } from "@/lib/countries";
+import { phoneToString, validatePhone, type Phone } from "@/lib/validation";
 import { useAuth, useShop } from "../Providers";
 import { fbStorage, firebaseConfigured } from "@/lib/firebase-client";
 import { CONTACT_EMAIL } from "@/lib/catalog";
@@ -21,10 +26,33 @@ export default function BookingStep({ sel, q }: { sel: Selection; q: Quote }) {
   const { user, loading, token } = useAuth();
   const { currency, money } = useShop();
   const router = useRouter();
-  const [f, setF] = useState({ name: "", whatsapp: "", country: "", university: "", degree: "", notes: "" });
+  const region = useRegion();
+  const [f, setF] = useState({ name: "", university: "", degree: "", notes: "" });
+  const [country, setCountry] = useState("");
+  const [phone, setPhone] = useState<Phone>({ iso: "", number: "" });
+  const [errs, setErrs] = useState<Record<string, string>>({});
+  const phoneShown: Phone = { iso: phone.iso || country || region, number: phone.number };
+  const countryName = countryByIso(country)?.name ?? "";
   const [files, setFiles] = useState<File[]>([]);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState("");
+  // prefill from the profile saved at sign-up
+  useEffect(() => {
+    if (!user) return;
+    let stop = false;
+    token()
+      .then((t) => fetch("/api/profile", { headers: { Authorization: `Bearer ${t}` } }))
+      .then((r) => r.json())
+      .then((d) => {
+        if (stop) return;
+        const p = d.profile;
+        setF((x) => ({ ...x, name: x.name || p?.name || user.displayName || "" }));
+        if (p) { setCountry((c) => c || p.country); setPhone((ph) => (ph.number ? ph : { iso: p.phoneIso, number: p.phone })); }
+      })
+      .catch(() => {});
+    return () => { stop = true; };
+  }, [user, token]);
+
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF({ ...f, [k]: e.target.value });
 
   function addFiles(list: FileList | null) {
@@ -38,17 +66,24 @@ export default function BookingStep({ sel, q }: { sel: Selection; q: Quote }) {
   }
 
   const text = (orderId?: string) =>
-    orderText(sel, q, money(q.totalGBP), { ...f, email: user?.email ?? "", files: files.map((x) => x.name), orderId });
+    orderText(sel, q, money(q.totalGBP), { ...f, whatsapp: phoneToString(phoneShown), country: countryName, email: user?.email ?? "", files: files.map((x) => x.name), orderId });
 
   async function place(e: React.FormEvent) {
     e.preventDefault();
     if (!user) return;
+    const v: Record<string, string> = {};
+    if (f.name.trim().length < 2) v.name = "Enter your full name.";
+    if (!country) v.country = "Select your country.";
+    const pe = validatePhone(phoneShown);
+    if (pe) v.phone = pe;
+    setErrs(v);
+    if (Object.keys(v).length) return;
     setErr(""); setBusy("Creating your order…");
     try {
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${await token()}` },
-        body: JSON.stringify({ ...f, selection: sel, currency, files: files.map((x) => ({ name: x.name, size: x.size })) }),
+        body: JSON.stringify({ ...f, whatsapp: phoneToString(phoneShown), country: countryName, selection: sel, currency, files: files.map((x) => ({ name: x.name, size: x.size })) }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error);
@@ -87,16 +122,28 @@ export default function BookingStep({ sel, q }: { sel: Selection; q: Quote }) {
     );
 
   return (
-    <form onSubmit={place}>
+    <form onSubmit={place} noValidate>
       <h2 className="text-2xl font-semibold">Your details</h2>
       <p className="mt-1 text-muted">Signed in as {user.email}</p>
       <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        <div><label className="label">Full name</label><input className="input" required value={f.name} onChange={set("name")} autoComplete="name" /></div>
-        <div><label className="label">WhatsApp number</label><input className="input" type="tel" required placeholder="+92 300 1234567" value={f.whatsapp} onChange={set("whatsapp")} autoComplete="tel" /></div>
-        <div><label className="label">Country</label><input className="input" required value={f.country} onChange={set("country")} autoComplete="country-name" /></div>
-        <div><label className="label">University</label><input className="input" value={f.university} onChange={set("university")} /></div>
-        <div className="sm:col-span-2"><label className="label">Degree</label><input className="input" value={f.degree} onChange={set("degree")} placeholder={sel.course} /></div>
-        <div className="sm:col-span-2"><label className="label">Supervisor requirements / notes</label><textarea className="input min-h-28" value={f.notes} onChange={set("notes")} placeholder="Anything we should know: formatting rules, supervisor feedback, topic ideas…" /></div>
+        <div>
+          <label className="label" htmlFor="b-name">Full name</label>
+          <input id="b-name" className={`input !h-11 !py-0 ${errs.name ? "!border-danger" : ""}`} value={f.name} onChange={set("name")} autoComplete="name" />
+          {errs.name && <p className="mt-1 text-xs text-danger">{errs.name}</p>}
+        </div>
+        <div>
+          <label className="label">Country</label>
+          <CountrySelect value={country} onChange={setCountry} invalid={!!errs.country} />
+          {errs.country && <p className="mt-1 text-xs text-danger">{errs.country}</p>}
+        </div>
+        <div className="sm:col-span-2">
+          <label className="label">WhatsApp number</label>
+          <PhoneInput value={phoneShown} onChange={setPhone} invalid={!!errs.phone} />
+          {errs.phone && <p className="mt-1 text-xs text-danger">{errs.phone}</p>}
+        </div>
+        <div><label className="label" htmlFor="b-uni">University</label><input id="b-uni" className="input !h-11 !py-0" value={f.university} onChange={set("university")} /></div>
+        <div><label className="label" htmlFor="b-deg">Degree</label><input id="b-deg" className="input !h-11 !py-0" value={f.degree} onChange={set("degree")} placeholder={sel.course} /></div>
+        <div className="sm:col-span-2"><label className="label" htmlFor="b-notes">Supervisor requirements / notes</label><textarea id="b-notes" className="input min-h-28" value={f.notes} onChange={set("notes")} placeholder="Anything we should know: formatting rules, supervisor feedback, topic ideas…" /></div>
       </div>
 
       {uploadsOn ? (

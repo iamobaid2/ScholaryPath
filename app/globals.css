@@ -35,7 +35,7 @@
 }
 
 html { scroll-behavior: smooth; }
-body { background: var(--bg); color: var(--fg); font-family: var(--font-inter), system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+body { overflow-x: clip; background: var(--bg); color: var(--fg); font-family: var(--font-inter), system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
 h1, h2, h3, .font-display { font-family: var(--font-serif), Georgia, serif; letter-spacing: -0.015em; }
 h1, h2, h3 { font-weight: 500; }
 
@@ -43,6 +43,7 @@ h1, h2, h3 { font-weight: 500; }
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; border-radius: .7rem; padding: .75rem 1.3rem; font-weight: 500; font-size: .95rem; transition: transform .2s, background .2s, border-color .2s; cursor: pointer; white-space: nowrap; }
 .btn:active { transform: scale(.98); }
 .btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn-sm { height: 2.5rem; padding: 0 1rem; font-size: .875rem; }
 .btn-primary { color: var(--on-brand); background: var(--brand); }
 .btn-primary:hover:not(:disabled) { background: color-mix(in srgb, var(--brand) 88%, var(--fg)); transform: translateY(-1px); }
 .btn-ghost { background: transparent; border: 1px solid var(--line); color: var(--fg); }

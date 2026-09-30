@@ -25,9 +25,9 @@ export default function Hero() {
           <motion.p {...item(2)} className="mt-5 max-w-xl text-lg text-muted">
             Expert editing, proofreading, formatting, research consultation, technical guidance and professional document services for students, researchers and professionals worldwide.
           </motion.p>
-          <motion.div {...item(3)} className="mt-8 flex flex-wrap gap-3">
-            <Link href="/quote" className="btn btn-primary">Get instant quote <ArrowRight size={18} /></Link>
-            <a href={waLink()} target="_blank" rel="noopener noreferrer" className="btn btn-ghost"><WhatsAppIcon size={18} /> Talk with an expert</a>
+          <motion.div {...item(3)} className="mt-8 flex flex-col gap-3 sm:flex-row">
+            <Link href="/quote" className="btn btn-primary w-full sm:w-auto">Get instant quote <ArrowRight size={18} /></Link>
+            <a href={waLink()} target="_blank" rel="noopener noreferrer" className="btn btn-ghost w-full sm:w-auto"><WhatsAppIcon size={18} /> Talk with an expert</a>
           </motion.div>
           <motion.div {...item(4)} className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted">
             <span className="flex items-center gap-2"><ShieldCheck size={16} className="text-brand-2" /> Secure payments</span>
