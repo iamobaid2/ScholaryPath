@@ -45,7 +45,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      {!isAdmin && <AnnouncementBar />}
+      {!user && <AnnouncementBar />}
       <Navbar />
       <main className="flex-1">{children}</main>
       {!user && <Footer />}
