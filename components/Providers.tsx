@@ -24,7 +24,7 @@ type ShopCtx = {
 };
 const Shop = createContext<ShopCtx>(null as never);
 
-type ContentCtx = { showcase: ShowcaseItem[]; reviews: PublicReview[]; average: number; reviewCount: number; refresh: () => void };
+type ContentCtx = { showcase: ShowcaseItem[]; reviews: PublicReview[]; average: number; reviewCount: number; refresh: (fresh?: boolean) => void };
 const Content = createContext<ContentCtx>({ showcase: [], reviews: [], average: 0, reviewCount: 0, refresh: () => {} });
 /** What the owner publishes: the showcase and approved client reviews. */
 export const useContent = () => useContext(Content);
@@ -47,9 +47,14 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   const [average, setAverage] = useState(0);
   const [reviewCount, setReviewCount] = useState(0);
 
-  const refresh = useCallback(() => {
-    fetch("/api/showcase").then((r) => r.json()).then((d) => setShowcase(d.items ?? [])).catch(() => {});
-    fetch("/api/reviews").then((r) => r.json()).then((d) => { setReviews(d.reviews ?? []); setAverage(d.average ?? 0); setReviewCount(d.count ?? 0); }).catch(() => {});
+  // The public endpoints are cached for a minute at the edge. After somebody publishes or approves
+  // something, `fresh` asks for a new copy (a unique URL, so no cache can answer it) so their own
+  // change shows up straight away instead of after a reload.
+  const refresh = useCallback((fresh = false) => {
+    const q = fresh ? `?t=${Date.now()}` : "";
+    const init: RequestInit = fresh ? { cache: "no-store" } : {};
+    fetch(`/api/showcase${q}`, init).then((r) => r.json()).then((d) => setShowcase(d.items ?? [])).catch(() => {});
+    fetch(`/api/reviews${q}`, init).then((r) => r.json()).then((d) => { setReviews(d.reviews ?? []); setAverage(d.average ?? 0); setReviewCount(d.count ?? 0); }).catch(() => {});
   }, []);
 
   useEffect(() => {

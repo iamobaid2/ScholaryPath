@@ -45,13 +45,13 @@ export default function ShowcaseTab() {
       await api("/api/admin/showcase", t, { method: "POST", body: JSON.stringify(body) });
       setF({ ...empty, kind: f.kind }); setImage(undefined); setPdf(undefined);
       setOk("Added to the showcase.");
-      refresh();
+      refresh(true);
     } catch (e2) { setErr(e2 instanceof Error ? e2.message : "Couldn't add it."); } finally { setBusy(""); }
   }
 
   async function remove(id: string) {
     if (!confirm("Remove this from the showcase?")) return;
-    try { await api(`/api/admin/showcase/${id}`, await token(), { method: "DELETE" }); refresh(); } catch (e2) { setErr(e2 instanceof Error ? e2.message : "Couldn't remove it."); }
+    try { await api(`/api/admin/showcase/${id}`, await token(), { method: "DELETE" }); refresh(true); } catch (e2) { setErr(e2 instanceof Error ? e2.message : "Couldn't remove it."); }
   }
 
   return (

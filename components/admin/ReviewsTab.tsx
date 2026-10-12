@@ -22,11 +22,11 @@ export default function ReviewsTab() {
   useEffect(() => { load(); }, [load]);
 
   async function setStatus(id: string, status: ReviewStatus) {
-    try { await api(`/api/admin/reviews/${id}`, await token(), { method: "PATCH", body: JSON.stringify({ status }) }); load(); refresh(); } catch (e) { setErr((e as Error).message); }
+    try { await api(`/api/admin/reviews/${id}`, await token(), { method: "PATCH", body: JSON.stringify({ status }) }); load(); refresh(true); } catch (e) { setErr((e as Error).message); }
   }
   async function remove(id: string) {
     if (!confirm("Delete this review?")) return;
-    try { await api(`/api/admin/reviews/${id}`, await token(), { method: "DELETE" }); load(); refresh(); } catch (e) { setErr((e as Error).message); }
+    try { await api(`/api/admin/reviews/${id}`, await token(), { method: "DELETE" }); load(); refresh(true); } catch (e) { setErr((e as Error).message); }
   }
 
   if (!reviews) return err ? <p className="text-danger">{err}</p> : <Loader variant="inline" label="Loading reviews" />;

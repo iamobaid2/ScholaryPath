@@ -44,7 +44,7 @@ export default function ReviewForm() {
       const d = await api<{ review: Review }>("/api/reviews", await token(), { method: "POST", body: JSON.stringify({ rating, comment }) });
       setMine(d.review);
       setEditing(false);
-      refresh();
+      refresh(true);
     } catch (e2) { setErr(e2 instanceof Error ? e2.message : "Couldn't save your review."); } finally { setBusy(false); }
   }
 
