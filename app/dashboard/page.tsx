@@ -6,6 +6,7 @@ import { ArrowRight, Inbox } from "lucide-react";
 import RequireAuth from "@/components/RequireAuth";
 import StatusBadge from "@/components/StatusBadge";
 import Loader from "@/components/Loader";
+import ReviewForm from "@/components/ReviewForm";
 import { useAuth } from "@/components/Providers";
 import { api } from "@/lib/api";
 import type { Order } from "@/lib/types";
@@ -51,6 +52,7 @@ function Orders() {
           </motion.div>
         ))}
       </div>
+      <ReviewForm />
     </div>
   );
 }

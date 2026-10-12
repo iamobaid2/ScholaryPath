@@ -1,26 +1,30 @@
-import { COMPLEXITY, DEADLINES, LEVELS, WORD_OPTIONS, findOption, EXTRAS, BRAND } from "@/lib/catalog";
-import type { Quote, Selection } from "@/lib/pricing";
+import { COMPLEXITY, DEADLINES, LEVELS, WORD_OPTIONS, BRAND } from "@/lib/catalog";
+import { calculateItem, wordKind, type Item, type Quote, type Selection } from "@/lib/pricing";
 
-export const emptySel: Selection = { level: "", course: "", service: "", wordIndex: null, complexity: "", deadline: "", extras: [], code: "" };
-
-export function wordLabel(sel: Selection) {
-  const o = findOption(sel.service);
-  if (!o || o.kind === "flat" || sel.wordIndex === null) return "";
-  return WORD_OPTIONS[o.kind][sel.wordIndex]?.label ?? "";
+export function wordLabel(item: Item) {
+  const kind = wordKind(item.service, item.documentation);
+  if (!kind || item.wordIndex === null) return "";
+  return WORD_OPTIONS[kind][item.wordIndex]?.label ?? "";
 }
 
-export function orderText(sel: Selection, q: Quote, total: string, extra: { name?: string; email?: string; whatsapp?: string; country?: string; university?: string; degree?: string; notes?: string; files?: string[]; orderId?: string }) {
-  const o = findOption(sel.service);
+export function orderText(
+  sel: Selection,
+  q: Quote,
+  total: string,
+  extra: { name?: string; email?: string; whatsapp?: string; country?: string; university?: string; degree?: string; notes?: string; files?: string[]; feedback?: string[]; orderId?: string }
+) {
+  const services = sel.items.map((it, i) => {
+    const label = calculateItem(sel.level, it)?.label ?? it.service;
+    const bits = [wordLabel(it), COMPLEXITY.find((c) => c.id === it.complexity)?.label, DEADLINES.find((d) => d.id === it.deadline)?.time].filter(Boolean);
+    return `${i + 1}. ${label} (${bits.join(", ")})`;
+  });
   const lines = [
     `*New order – ${BRAND}*`,
     extra.orderId ? `Order ID: ${extra.orderId}` : null,
     `Level: ${LEVELS.find((l) => l.id === sel.level)?.label}`,
     `Course: ${sel.course}`,
-    `Service: ${o?.label}`,
-    wordLabel(sel) ? `Length: ${wordLabel(sel)} words` : null,
-    `Complexity: ${COMPLEXITY.find((c) => c.id === sel.complexity)?.label}`,
-    `Deadline: ${DEADLINES.find((d) => d.id === sel.deadline)?.time}`,
-    sel.extras.length ? `Extras: ${sel.extras.map((e) => EXTRAS.find((x) => x.id === e)?.label).join(", ")}` : null,
+    "Services:",
+    ...services,
     q.discount > 0 ? `Discount code: ${sel.code.toUpperCase()}` : null,
     `*Estimated price: ${total}*`,
     "",
@@ -32,6 +36,7 @@ export function orderText(sel: Selection, q: Quote, total: string, extra: { name
     extra.degree ? `Degree: ${extra.degree}` : null,
     extra.notes ? `Notes: ${extra.notes}` : null,
     extra.files?.length ? `Files (I'll attach them here): ${extra.files.join(", ")}` : null,
+    extra.feedback?.length ? `Previous marks / feedback (I'll attach them here): ${extra.feedback.join(", ")}` : null,
   ];
   return lines.filter((l) => l !== null).join("\n");
 }

@@ -3,7 +3,7 @@
 export type LevelId = "highschool" | "bachelor" | "master" | "phd" | "mba" | "diploma";
 export type ComplexityId = "standard" | "advanced" | "expert";
 export type DeadlineId = "standard" | "fast" | "urgent" | "w4" | "w6" | "w8" | "w12";
-export type Kind = "essay" | "assignment" | "thesis" | "phd" | "edit" | "flat";
+export type Kind = "essay" | "assignment" | "thesis" | "edit" | "flat";
 
 export const LEVELS: { id: LevelId; label: string; desc: string }[] = [
   { id: "highschool", label: "High School", desc: "Grades 9–12, A-Levels, IB" },
@@ -24,11 +24,20 @@ export const COURSE_GROUPS: { group: string; courses: string[] }[] = [
   { group: "Law", courses: ["Law", "Legal Studies"] },
 ];
 
-export type ServiceOption = { id: string; label: string; desc?: string; kind: Kind; levelScaled?: boolean };
+export type ServiceOption = {
+  id: string;
+  label: string;
+  desc?: string;
+  kind: Kind;
+  levelScaled?: boolean;
+  /** Technical services: the client is asked whether they also need written documentation. */
+  docs?: boolean;
+};
 export type ServiceCategory = { id: string; label: string; blurb: string; icon: string; options: ServiceOption[] };
 
 const w = (id: string, label: string, kind: Kind = "assignment", desc?: string): ServiceOption => ({ id, label, kind, desc, levelScaled: true });
 const flat = (id: string, label: string, levelScaled = true, desc?: string): ServiceOption => ({ id, label, kind: "flat", levelScaled, desc });
+const tech = (id: string, label: string): ServiceOption => ({ id, label, kind: "flat", levelScaled: true, docs: true });
 
 export const SERVICE_CATEGORIES: ServiceCategory[] = [
   {
@@ -61,9 +70,11 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
       { id: "results-chapter", label: "Results Chapter", kind: "thesis" },
       { id: "discussion-chapter", label: "Discussion Chapter", kind: "thesis" },
       { id: "thesis-formatting", label: "Thesis Formatting", kind: "thesis" },
-      { id: "thesis-full", label: "Complete Thesis Support", kind: "thesis", desc: "10,000–30,000 words" },
-      { id: "dissertation-full", label: "Complete Dissertation Support", kind: "thesis", desc: "10,000–30,000 words" },
-      { id: "phd-thesis", label: "PhD Thesis Support", kind: "phd", desc: "40,000–60,000+ words" },
+      { id: "thesis-full", label: "Complete Thesis Support", kind: "thesis" },
+      { id: "thesis-with-project", label: "Thesis with Project", kind: "thesis", desc: "Written thesis plus the practical project" },
+      { id: "dissertation-full", label: "Complete Dissertation Support", kind: "thesis" },
+      { id: "dissertation-with-project", label: "Dissertation with Project", kind: "thesis", desc: "Written dissertation plus the practical project" },
+      { id: "phd-thesis", label: "PhD Thesis Support", kind: "thesis" },
     ],
   },
   {
@@ -111,15 +122,15 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
     blurb: "Programming guidance, data analysis, ML, AI and UI/UX.",
     icon: "Code2",
     options: [
-      flat("programming", "Programming Guidance"),
-      flat("python", "Python"),
-      flat("java", "Java"),
-      flat("cpp", "C++"),
-      flat("sql", "SQL"),
-      flat("data-analysis", "Data Analysis"),
-      flat("ml", "Machine Learning"),
-      flat("ai-projects", "AI Projects"),
-      flat("uiux", "UI/UX Design"),
+      tech("programming", "Programming Guidance"),
+      tech("python", "Python"),
+      tech("java", "Java"),
+      tech("cpp", "C++"),
+      tech("sql", "SQL"),
+      tech("data-analysis", "Data Analysis"),
+      tech("ml", "Machine Learning"),
+      tech("ai-projects", "AI Projects"),
+      tech("uiux", "UI/UX Design"),
     ],
   },
 ];
@@ -144,55 +155,28 @@ export const DEADLINES: { id: DeadlineId; label: string; time: string; note: str
   { id: "w12", label: "12 weeks", time: "12 weeks", note: "", group: "weeks" },
 ];
 
-export const EXTRAS: { id: string; label: string }[] = [
-  { id: "formatting", label: "Formatting to university guidelines" },
-  { id: "referencing", label: "APA / Harvard / MLA referencing" },
-  { id: "citation", label: "Citation correction" },
-  { id: "reflist", label: "Reference list creation" },
-  { id: "tables", label: "Table formatting" },
-  { id: "figures", label: "Figure formatting" },
-  { id: "plagiarism", label: "Plagiarism report" },
-  { id: "journal", label: "Journal guidelines compliance" },
-  { id: "latex", label: "LaTeX formatting" },
-];
-
 export type WordOption = { label: string; words: number };
+/** Each option is a range; `words` is its upper bound, which is what editing is charged on. */
+const DOC_RANGES: WordOption[] = [
+  { label: "100 – 1,000 words", words: 1000 },
+  { label: "1,000 – 3,000 words", words: 3000 },
+  { label: "3,000 – 5,000 words", words: 5000 },
+  { label: "5,000 – 10,000 words", words: 10000 },
+];
 export const WORD_OPTIONS: Record<Exclude<Kind, "flat">, WordOption[]> = {
-  essay: [
-    { label: "500–1,000", words: 1000 },
-    { label: "1,000–2,000", words: 2000 },
-    { label: "2,000–3,000", words: 3000 },
-    { label: "3,000–4,000", words: 4000 },
-    { label: "4,000–5,000", words: 5000 },
-    { label: "Above 5,000", words: 6000 },
-  ],
-  assignment: [
-    { label: "500–1,000", words: 1000 },
-    { label: "1,000–2,000", words: 2000 },
-    { label: "2,000–3,000", words: 3000 },
-    { label: "3,000–4,000", words: 4000 },
-    { label: "4,000–5,000", words: 5000 },
-    { label: "Above 5,000", words: 6000 },
-  ],
+  essay: DOC_RANGES,
+  assignment: DOC_RANGES,
   thesis: [
-    { label: "10,000 words", words: 10000 },
-    { label: "20,000 words", words: 20000 },
-    { label: "30,000 words", words: 30000 },
-  ],
-  phd: [
-    { label: "40,000 words", words: 40000 },
-    { label: "50,000 words", words: 50000 },
-    { label: "60,000+ words", words: 60000 },
+    { label: "10,000 – 15,000 words", words: 15000 },
+    { label: "15,000 – 25,000 words", words: 25000 },
+    { label: "25,000 – 40,000 words", words: 40000 },
+    { label: "40,000 – 60,000 words", words: 60000 },
   ],
   edit: [
-    { label: "Up to 1,000", words: 1000 },
-    { label: "2,000", words: 2000 },
-    { label: "3,000", words: 3000 },
-    { label: "5,000", words: 5000 },
-    { label: "10,000", words: 10000 },
-    { label: "20,000", words: 20000 },
-    { label: "30,000", words: 30000 },
-    { label: "50,000", words: 50000 },
+    ...DOC_RANGES,
+    { label: "10,000 – 20,000 words", words: 20000 },
+    { label: "20,000 – 40,000 words", words: 40000 },
+    { label: "40,000 – 60,000 words", words: 60000 },
   ],
 };
 
@@ -212,5 +196,6 @@ export type StageId = (typeof STAGES)[number]["id"];
 export const DISCOUNT_CODE = "SCHOLAR15";
 export const WHATSAPP_NUMBER = "923207201065";
 export const WHATSAPP_DISPLAY = "+92 320 7201065";
-export const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL || "hello@scholarypath.com";
+export const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL || "scholarlypath2@gmail.com";
+export const FACEBOOK_URL = "https://www.facebook.com/share/1EUDFuVJrV/";
 export const BRAND = "ScholaryPath";

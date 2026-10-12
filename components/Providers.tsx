@@ -5,6 +5,7 @@ import { fbAuth, firebaseConfigured } from "@/lib/firebase-client";
 import { DEFAULT_PRICING, type PricingConfig } from "@/lib/pricing-defaults";
 import { CURRENCIES, DISCOUNT_CODE, type Currency } from "@/lib/catalog";
 import { formatMoney } from "@/lib/pricing";
+import type { PublicReview, ShowcaseItem } from "@/lib/public-types";
 
 type AuthCtx = { user: User | null; loading: boolean; logout: () => Promise<void>; token: () => Promise<string>; isAdmin: boolean; roleReady: boolean };
 const Auth = createContext<AuthCtx>({ user: null, loading: true, logout: async () => {}, token: async () => "", isAdmin: false, roleReady: true });
@@ -22,6 +23,11 @@ type ShopCtx = {
   closeDiscount: () => void;
 };
 const Shop = createContext<ShopCtx>(null as never);
+
+type ContentCtx = { showcase: ShowcaseItem[]; reviews: PublicReview[]; average: number; reviewCount: number; refresh: () => void };
+const Content = createContext<ContentCtx>({ showcase: [], reviews: [], average: 0, reviewCount: 0, refresh: () => {} });
+/** What the owner publishes: the showcase and approved client reviews. */
+export const useContent = () => useContext(Content);
 export const useShop = () => useContext(Shop);
 
 const safeGet = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
@@ -36,6 +42,15 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   const [currency, setCurrencyState] = useState<Currency>("GBP");
   const [code, setCodeState] = useState("");
   const [discountOpen, setDiscountOpen] = useState(false);
+  const [showcase, setShowcase] = useState<ShowcaseItem[]>([]);
+  const [reviews, setReviews] = useState<PublicReview[]>([]);
+  const [average, setAverage] = useState(0);
+  const [reviewCount, setReviewCount] = useState(0);
+
+  const refresh = useCallback(() => {
+    fetch("/api/showcase").then((r) => r.json()).then((d) => setShowcase(d.items ?? [])).catch(() => {});
+    fetch("/api/reviews").then((r) => r.json()).then((d) => { setReviews(d.reviews ?? []); setAverage(d.average ?? 0); setReviewCount(d.count ?? 0); }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!firebaseConfigured) return;
@@ -52,6 +67,8 @@ export default function Providers({ children }: { children: React.ReactNode }) {
       }
     });
   }, []);
+
+  useEffect(() => { refresh(); }, [refresh]);
 
   useEffect(() => {
     fetch("/api/pricing").then((r) => r.json()).then((d) => d.config && setCfg(d.config)).catch(() => {});
@@ -86,7 +103,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <Auth.Provider value={auth}>
-      <Shop.Provider value={shop}>{children}</Shop.Provider>
+      <Shop.Provider value={shop}>
+        <Content.Provider value={{ showcase, reviews, average, reviewCount, refresh }}>{children}</Content.Provider>
+      </Shop.Provider>
     </Auth.Provider>
   );
 }

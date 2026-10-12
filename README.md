@@ -27,3 +27,22 @@ The site works without any keys (quote calculator, discount popup, WhatsApp/emai
 - Labels, services, courses and add-on names: `lib/catalog.ts`. FAQ and testimonials: `lib/content.ts`.
 
 The server recalculates every price when an order is placed, so the browser can't change what's charged.
+
+## What you manage in /admin
+
+- **Orders**: stages, payments, notes and the files clients attached.
+- **Pricing**: every price, multiplier and exchange rate.
+- **Showcase**: upload students' marks (images), high-scoring assignments, projects, documentation and dissertations (PDFs). They appear on the home page under "Work that scored well".
+- **Reviews**: signed-in clients leave one review from their dashboard; you publish or reject it here before it shows on the home page.
+
+## File uploads (Cloudinary)
+
+Client files, the marks/feedback images and the showcase are uploaded straight from the browser to Cloudinary using parameters signed by the server.
+
+1. Create a free account at cloudinary.com and copy the cloud name, API key and API secret from the dashboard into `CLOUDINARY_*` in `.env.local` (and on Vercel).
+2. Set `NEXT_PUBLIC_ENABLE_UPLOADS=true`.
+3. In Cloudinary → Settings → Security, tick **Allow delivery of PDF and ZIP files**, otherwise showcase PDFs won't open.
+
+Client documents are stored as `authenticated` assets, so they aren't publicly reachable; only signed links (which the admin gets) work. The free plan allows 10 MB per file.
+
+Until the keys are set, clients are asked to send files on WhatsApp or email.

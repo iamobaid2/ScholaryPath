@@ -2,11 +2,11 @@
 import Link from "next/link";
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowRight, Plus, Quote } from "lucide-react";
+import { ArrowRight, Plus } from "lucide-react";
 import Reveal from "../Reveal";
 import ServiceIcon from "../ServiceIcon";
 import { SERVICE_CATEGORIES } from "@/lib/catalog";
-import { FAQ, TESTIMONIALS } from "@/lib/content";
+import { FAQ } from "@/lib/content";
 import { useShop } from "../Providers";
 
 export function HowItWorks() {
@@ -57,20 +57,6 @@ export function Services() {
   );
 }
 
-export function Testimonials() {
-  if (!TESTIMONIALS.length) return null;
-  return (
-    <section className="mx-auto max-w-6xl px-4 py-20">
-      <Reveal><h2 className="text-center text-3xl font-semibold">Trusted by students and researchers</h2></Reveal>
-      <div className="mt-10 grid gap-5 md:grid-cols-3">
-        {TESTIMONIALS.map((t) => (
-          <Reveal key={t.name}><figure className="card h-full p-6"><Quote className="text-brand" size={20} /><blockquote className="mt-3 text-sm">{t.quote}</blockquote><figcaption className="mt-4 text-sm font-semibold">{t.name}<span className="block font-normal text-muted">{t.role}</span></figcaption></figure></Reveal>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 export function FaqSection() {
   const [open, setOpen] = useState<number | null>(0);
   return (
@@ -108,7 +94,7 @@ export function FinalCta() {
           <h2 className="text-3xl font-semibold sm:text-4xl">Ready to see your price?</h2>
           <p className="mx-auto mt-3 max-w-xl opacity-90">Start your quote now. First-time students get {cfg.discountPercent}% off.</p>
           <div className="mt-7 flex flex-wrap justify-center gap-3">
-            <Link href="/quote" className="btn bg-surface text-fg hover:-translate-y-0.5">Get instant quote</Link>
+            <Link href="/quote" className="btn bg-surface text-fg hover:-translate-y-0.5">Check Pricing Now</Link>
             <button onClick={openDiscount} className="btn border border-on-brand/40 text-on-brand hover:bg-on-brand/10">Claim discount</button>
           </div>
         </div>

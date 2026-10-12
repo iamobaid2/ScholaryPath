@@ -2,62 +2,106 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "motion/react";
-import { ArrowLeft, ChevronUp, Check } from "lucide-react";
+import { ArrowLeft, ChevronUp, Plus, Trash2 } from "lucide-react";
 import { useShop } from "../Providers";
 import ServiceIcon from "../ServiceIcon";
 import PricePanel from "./PricePanel";
 import BookingStep from "./BookingStep";
-import { emptySel } from "./helpers";
-import { calculate, isWeekTimeline, needsWords, type Selection } from "@/lib/pricing";
-import { COMPLEXITY, COURSE_GROUPS, DEADLINES, EXTRAS, LEVELS, SERVICE_CATEGORIES, WORD_OPTIONS, findCategory, findOption } from "@/lib/catalog";
+import { wordLabel } from "./helpers";
+import { asksDocumentation, calculate, calculateItem, emptyItem, isWeekTimeline, needsWords, wordKind, type Item, type Selection } from "@/lib/pricing";
+import { COMPLEXITY, COURSE_GROUPS, DEADLINES, LEVELS, SERVICE_CATEGORIES, WORD_OPTIONS, findCategory, findOption } from "@/lib/catalog";
 
-type StepId = "level" | "course" | "service" | "words" | "complexity" | "deadline" | "extras" | "book";
+type StepId = "level" | "course" | "service" | "docs" | "words" | "complexity" | "deadline" | "cart" | "book";
 const TITLES: Record<StepId, string> = {
   level: "What is your academic level?",
   course: "What are you studying?",
   service: "What do you need help with?",
+  docs: "Do you need documentation?",
   words: "How long is it?",
   complexity: "How complex is the work?",
   deadline: "When do you need it?",
-  extras: "Any extras?",
+  cart: "Your services",
   book: "Book your order",
 };
+
+const stepsFor = (draft: Item): StepId[] => [
+  "level",
+  "course",
+  "service",
+  ...(draft.service && asksDocumentation(draft.service) ? (["docs"] as StepId[]) : []),
+  ...(draft.service && needsWords(draft.service, draft.documentation) ? (["words"] as StepId[]) : []),
+  "complexity",
+  "deadline",
+  "cart",
+  "book",
+];
 
 export default function QuoteWizard() {
   const { cfg, code, money } = useShop();
   const params = useSearchParams();
-  const [picked, setSel] = useState<Selection>(emptySel);
-  const sel = useMemo<Selection>(() => ({ ...picked, code }), [picked, code]);
+  const [base, setBase] = useState({ level: "", course: "" });
+  // Services already configured, and the one being configured now.
+  const [items, setItems] = useState<Item[]>([]);
+  const [draft, setDraft] = useState<Item>(emptyItem);
   const [step, setStep] = useState<StepId>("level");
   const [cat, setCat] = useState(params.get("cat") || SERVICE_CATEGORIES[0].id);
   const [other, setOther] = useState("");
   const [sheet, setSheet] = useState(false);
 
-  const steps = useMemo<StepId[]>(
-    () => ["level", "course", "service", ...(sel.service && needsWords(sel.service) ? (["words"] as StepId[]) : []), "complexity", "deadline", "extras", "book"],
-    [sel.service]
-  );
-  const idx = steps.indexOf(step);
+  const steps = useMemo(() => stepsFor(draft), [draft]);
+  const idx = Math.max(0, steps.indexOf(step));
 
   useEffect(() => { window.scrollTo({ top: 0, behavior: "smooth" }); }, [step]);
 
-  const weeks = isWeekTimeline(sel.service);
-  const preview: Selection = { ...sel, complexity: sel.complexity || "standard", deadline: sel.deadline || (weeks ? "w4" : "standard") };
-  const q = calculate(preview, cfg);
-  const complete = !!(sel.complexity && sel.deadline);
+  const weeks = isWeekTimeline(draft.service);
+
+  // The price shown while a service is still being configured uses sensible fallbacks for what isn't chosen yet.
+  const previewDraft: Item | undefined = draft.service
+    ? {
+        ...draft,
+        complexity: draft.complexity || "standard",
+        deadline: draft.deadline || (weeks ? "w4" : "standard"),
+        documentation: draft.documentation || (asksDocumentation(draft.service) ? "no" : ""),
+      }
+    : undefined;
+  const sel: Selection = { ...base, items, code };
+  const q = calculate({ ...sel, items: previewDraft ? [...items, previewDraft] : items }, cfg);
+  const complete = items.length > 0 && !draft.service;
+  const bookable = complete && calculate(sel, cfg).ok;
 
   const go = (n: StepId) => setStep(n);
-  const next = (patch: Partial<Selection>, after?: StepId) => {
-    const merged = { ...sel, ...patch };
-    setSel(merged);
-    const list: StepId[] = ["level", "course", "service", ...(merged.service && needsWords(merged.service) ? (["words"] as StepId[]) : []), "complexity", "deadline", "extras", "book"];
-    const at = list.indexOf(step);
-    setTimeout(() => go(after ?? list[at + 1]), 220);
+  const advance = (list: StepId[], from: StepId) => setTimeout(() => go(list[list.indexOf(from) + 1]), 220);
+
+  const pickBase = (patch: Partial<typeof base>) => {
+    setBase((b) => ({ ...b, ...patch }));
+    advance(steps, step);
   };
-  const back = () => idx > 0 && go(steps[idx - 1]);
+  const pickDraft = (patch: Partial<Item>) => {
+    const merged = { ...draft, ...patch };
+    setDraft(merged);
+    advance(stepsFor(merged), step);
+  };
+  // The last choice for a service commits it to the order and moves on to the summary.
+  const commit = (deadline: string) => {
+    setItems((list) => [...list, { ...draft, deadline }]);
+    setDraft(emptyItem);
+    setTimeout(() => go("cart"), 220);
+  };
+
+  const back = () => {
+    if (step === "service" && items.length > 0) return go("cart");
+    if (step === "cart" && items.length > 0) {
+      // Undo the last service so it can be changed.
+      const last = items[items.length - 1];
+      setItems(items.slice(0, -1));
+      setDraft({ ...last, deadline: "" });
+      return go("deadline");
+    }
+    if (step === "book") return go("cart");
+    const at = steps.indexOf(step);
+    if (at > 0) go(steps[at - 1]);
+  };
   const pct = Math.round((idx / (steps.length - 1)) * 100);
-  const canContinueExtras = true;
-  const bookable = q.ok && complete;
 
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
@@ -83,7 +127,7 @@ export default function QuoteWizard() {
               {step === "level" && (
                 <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {LEVELS.map((l) => (
-                    <button key={l.id} className="choice" aria-pressed={sel.level === l.id} onClick={() => next({ level: l.id })}>
+                    <button key={l.id} className="choice" aria-pressed={base.level === l.id} onClick={() => pickBase({ level: l.id })}>
                       <div className="font-semibold">{l.label}</div><div className="mt-0.5 text-sm text-muted">{l.desc}</div>
                     </button>
                   ))}
@@ -97,14 +141,14 @@ export default function QuoteWizard() {
                       <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">{g.group}</div>
                       <div className="flex flex-wrap gap-2">
                         {g.courses.map((c) => (
-                          <button key={g.group + c} className="choice !rounded-full !px-4 !py-2 text-sm" aria-pressed={sel.course === c} onClick={() => next({ course: c })}>{c}</button>
+                          <button key={g.group + c} className="choice !rounded-full !px-4 !py-2 text-sm" aria-pressed={base.course === c} onClick={() => pickBase({ course: c })}>{c}</button>
                         ))}
                       </div>
                     </div>
                   ))}
                   <div>
                     <div className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Other</div>
-                    <form className="flex max-w-md gap-2" onSubmit={(e) => { e.preventDefault(); if (other.trim()) next({ course: other.trim() }); }}>
+                    <form className="flex max-w-md gap-2" onSubmit={(e) => { e.preventDefault(); if (other.trim()) pickBase({ course: other.trim() }); }}>
                       <input className="input" placeholder="Not listed? Enter your subject" value={other} onChange={(e) => setOther(e.target.value)} maxLength={100} />
                       <button className="btn btn-primary" disabled={!other.trim()}>Continue</button>
                     </form>
@@ -123,13 +167,13 @@ export default function QuoteWizard() {
                   </div>
                   {(() => {
                     const c = SERVICE_CATEGORIES.find((x) => x.id === cat) ?? SERVICE_CATEGORIES[0];
-                    const selCat = findCategory(sel.service)?.id;
+                    const selCat = findCategory(draft.service)?.id;
                     return (
                       <motion.div key={c.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mt-4">
                         <p className="mb-4 text-sm text-muted">{c.blurb}</p>
                         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                           {c.options.map((o) => (
-                            <button key={o.id} className="choice" aria-pressed={sel.service === o.id && selCat === c.id} onClick={() => next({ service: o.id, wordIndex: null, deadline: "" })}>
+                            <button key={o.id} className="choice" aria-pressed={draft.service === o.id && selCat === c.id} onClick={() => pickDraft({ service: o.id, wordIndex: null, deadline: "", documentation: "" })}>
                               <div className="font-semibold">{o.label}</div>
                               {o.desc && <div className="mt-0.5 text-sm text-muted">{o.desc}</div>}
                             </button>
@@ -141,17 +185,31 @@ export default function QuoteWizard() {
                 </div>
               )}
 
+              {step === "docs" && (
+                <div className="mt-6">
+                  <p className="mb-4 text-sm text-muted">A written document explaining the work, such as a report, user guide or design rationale.</p>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {([["yes", "Yes, include documentation", "Priced by length, like an assignment, on top of the project."], ["no", "No, just the work", "The project on its own."]] as const).map(([v, title, desc]) => (
+                      <button key={v} className="choice" aria-pressed={draft.documentation === v} onClick={() => pickDraft({ documentation: v, wordIndex: null })}>
+                        <div className="font-semibold">{title}</div><div className="mt-0.5 text-sm text-muted">{desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {step === "words" && (() => {
-                const kind = findOption(sel.service)!.kind;
-                if (kind === "flat") return null;
+                const kind = wordKind(draft.service, draft.documentation);
+                if (!kind) return null;
                 const opts = WORD_OPTIONS[kind];
                 return (
                   <div className="mt-6">
-                    {(kind === "thesis" || kind === "phd") && <p className="mb-4 text-sm text-muted">Overall {kind === "phd" ? "PhD thesis" : "thesis / dissertation"} length.</p>}
+                    {kind === "thesis" && <p className="mb-4 text-sm text-muted">Overall thesis / dissertation length.</p>}
+                    {draft.documentation === "yes" && <p className="mb-4 text-sm text-muted">Length of the documentation.</p>}
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                       {opts.map((w, i) => (
-                        <button key={w.label} className="choice text-center" aria-pressed={sel.wordIndex === i} onClick={() => next({ wordIndex: i })}>
-                          <div className="font-semibold">{w.label}</div>{!w.label.includes("words") && <div className="text-xs text-muted">words</div>}
+                        <button key={w.label} className="choice text-center" aria-pressed={draft.wordIndex === i} onClick={() => pickDraft({ wordIndex: i })}>
+                          <div className="font-semibold">{w.label}</div>
                         </button>
                       ))}
                     </div>
@@ -164,7 +222,7 @@ export default function QuoteWizard() {
                   {COMPLEXITY.map((c) => {
                     const m = cfg.complexity[c.id] ?? 1;
                     return (
-                      <button key={c.id} className="choice" aria-pressed={sel.complexity === c.id} onClick={() => next({ complexity: c.id })}>
+                      <button key={c.id} className="choice" aria-pressed={draft.complexity === c.id} onClick={() => pickDraft({ complexity: c.id })}>
                         <div className="font-semibold">{c.label}</div><div className="mt-0.5 text-sm text-muted">{c.desc}</div>
                         {m !== 1 && <div className="mt-2 text-xs font-medium text-brand">+{Math.round((m - 1) * 100)}%</div>}
                       </button>
@@ -178,7 +236,7 @@ export default function QuoteWizard() {
                   {DEADLINES.filter((d) => d.group === (weeks ? "weeks" : "days")).map((d) => {
                     const m = cfg.deadlines[d.id] ?? 1;
                     return (
-                      <button key={d.id} className="choice" aria-pressed={sel.deadline === d.id} onClick={() => next({ deadline: d.id })}>
+                      <button key={d.id} className="choice" aria-pressed={draft.deadline === d.id} onClick={() => commit(d.id)}>
                         <div className="font-semibold">{weeks ? d.label : `${d.label} delivery`}</div>
                         {!weeks && <div className="mt-0.5 text-sm text-muted">{d.time}</div>}
                         <div className="mt-2 text-xs font-medium text-brand">{m > 1 ? `+${Math.round((m - 1) * 100)}%` : weeks ? "" : "Normal price"}</div>
@@ -188,21 +246,32 @@ export default function QuoteWizard() {
                 </div>
               )}
 
-              {step === "extras" && (
+              {step === "cart" && (
                 <div className="mt-6">
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    {EXTRAS.map((e) => {
-                      const on = sel.extras.includes(e.id);
+                  <ul className="space-y-3">
+                    {items.map((it, i) => {
+                      const lq = calculateItem(base.level, it, cfg);
+                      const opt = findOption(it.service);
                       return (
-                        <button key={e.id} className="choice flex items-center gap-3" aria-pressed={on} onClick={() => setSel({ ...sel, extras: on ? sel.extras.filter((x) => x !== e.id) : [...sel.extras, e.id] })}>
-                          <span className={`grid h-5 w-5 shrink-0 place-items-center rounded-md border ${on ? "border-brand bg-brand text-on-brand" : "border-line"}`}>{on && <Check size={14} />}</span>
-                          <span className="flex-1 text-sm font-medium">{e.label}</span>
-                          <span className="text-sm text-muted">+{money(cfg.extras[e.id] ?? 0)}</span>
-                        </button>
+                        <motion.li key={i} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="card flex items-start gap-4 p-4">
+                          <div className="min-w-0 flex-1">
+                            <div className="font-semibold">{lq?.label ?? opt?.label}</div>
+                            <div className="mt-0.5 text-sm text-muted">
+                              {[wordLabel(it), COMPLEXITY.find((c) => c.id === it.complexity)?.label, DEADLINES.find((d) => d.id === it.deadline)?.time].filter(Boolean).join(" · ")}
+                            </div>
+                          </div>
+                          <div className="font-display text-lg font-semibold">{lq ? money(lq.subtotal) : ""}</div>
+                          <button type="button" aria-label={`Remove ${opt?.label}`} onClick={() => setItems(items.filter((_, j) => j !== i))} className="p-1 text-muted hover:text-danger"><Trash2 size={18} /></button>
+                        </motion.li>
                       );
                     })}
+                  </ul>
+                  {items.length === 0 && <p className="text-muted">No services yet. Add one to continue.</p>}
+                  <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+                    <button className="btn btn-ghost" onClick={() => go("service")}><Plus size={18} /> Add another service</button>
+                    <button className="btn btn-primary" disabled={items.length === 0} onClick={() => go("book")}>Continue to booking</button>
                   </div>
-                  <button className="btn btn-primary mt-6" disabled={!canContinueExtras} onClick={() => go("book")}>{sel.extras.length ? "Continue" : "Skip extras"}</button>
+                  {items.length > 1 && <p className="mt-3 text-xs text-muted">Your student discount, if you have one, applies to the whole order.</p>}
                 </div>
               )}
 
@@ -212,7 +281,7 @@ export default function QuoteWizard() {
         </div>
 
         <aside className="hidden lg:block">
-          <div className="sticky top-24"><PricePanel sel={sel} q={q} complete={complete} /></div>
+          <div className="sticky top-24"><PricePanel level={base.level} course={base.course} items={items} draft={draft} q={q} complete={complete} /></div>
         </aside>
       </div>
 
@@ -221,7 +290,7 @@ export default function QuoteWizard() {
         <AnimatePresence>
           {sheet && (
             <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="max-h-[70vh] overflow-y-auto px-4 pt-4">
-              <PricePanel sel={sel} q={q} complete={complete} />
+              <PricePanel level={base.level} course={base.course} items={items} draft={draft} q={q} complete={complete} />
             </motion.div>
           )}
         </AnimatePresence>

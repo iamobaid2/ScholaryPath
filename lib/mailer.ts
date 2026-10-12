@@ -31,14 +31,14 @@ async function send(to: string | string[], subject: string, text: string) {
 const summary = (o: Order) =>
   [
     `Order ID: ${o.id}`,
-    `Service: ${o.serviceLabel}`,
+    `Services (${o.selection.items.length}): ${o.serviceLabel}`,
     `Level: ${o.levelLabel}`,
     `Subject: ${o.selection.course}`,
-    o.words ? `Words: ${o.words.toLocaleString("en")}` : null,
-    `Complexity: ${o.selection.complexity}`,
-    `Deadline: ${o.eta}`,
+    o.words ? `Total words (upper range): ${o.words.toLocaleString("en")}` : null,
+    `Longest deadline: ${o.eta}`,
     `Amount: ${o.amount} ${o.currency} (£${o.totalGBP} GBP)`,
     `Files: ${o.files.length ? o.files.map((f) => f.name).join(", ") : "none"}`,
+    `Marks/feedback images: ${o.feedbackFiles?.length ? o.feedbackFiles.map((f) => f.name).join(", ") : "none"}`,
   ]
     .filter(Boolean)
     .join("\n");
@@ -61,4 +61,12 @@ export async function notifyPaid(o: Order) {
   const to = process.env.ADMIN_NOTIFY_EMAIL ? [process.env.ADMIN_NOTIFY_EMAIL] : adminEmails();
   await send(to, `Payment received – ${o.id}`, `Payment confirmed for ${o.id}.\n\n${summary(o)}`);
   await send(o.email, `${BRAND} – payment confirmed for ${o.id}`, `Hi ${o.name},\n\nWe've received your payment for order ${o.id}. Your expert will be assigned shortly.\n\n– ${BRAND}`);
+}
+
+export async function notifyStage(o: Order, stageLabel: string) {
+  await send(
+    o.email,
+    `${BRAND} – order ${o.id}: ${stageLabel}`,
+    `Hi ${o.name},\n\nYour order ${o.id} (${o.serviceLabel}) has moved to: ${stageLabel}.\n\nYou can follow every step from your dashboard.\n\n– ${BRAND}`
+  );
 }

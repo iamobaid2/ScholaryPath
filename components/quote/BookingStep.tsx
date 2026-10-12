@@ -2,10 +2,10 @@
 import WhatsAppIcon from "../WhatsAppIcon";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "motion/react";
-import { FileText, Mail, Paperclip, X } from "lucide-react";
-import { ref, uploadBytes } from "firebase/storage";
+import { Mail } from "lucide-react";
+import { uploadToCloudinary } from "@/lib/upload-client";
 import AuthForm from "../AuthForm";
+import FileDropzone from "./FileDropzone";
 import Loader from "../Loader";
 import CountrySelect from "../ui/CountrySelect";
 import PhoneInput from "../ui/PhoneInput";
@@ -13,15 +13,15 @@ import useRegion from "../ui/useRegion";
 import { countryByIso } from "@/lib/countries";
 import { phoneToString, validatePhone, type Phone } from "@/lib/validation";
 import { useAuth, useShop } from "../Providers";
-import { fbStorage, firebaseConfigured } from "@/lib/firebase-client";
+import { firebaseConfigured } from "@/lib/firebase-client";
 import { CONTACT_EMAIL } from "@/lib/catalog";
 import type { Quote, Selection } from "@/lib/pricing";
 import { waLink } from "@/lib/whatsapp";
 import { orderText } from "./helpers";
 
 const uploadsOn = process.env.NEXT_PUBLIC_ENABLE_UPLOADS === "true";
-const MAX = 25 * 1024 * 1024;
-const fmtSize = (n: number) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
+
+type Uploaded = Awaited<ReturnType<typeof uploadToCloudinary>>;
 
 export default function BookingStep({ sel, q }: { sel: Selection; q: Quote }) {
   const { user, loading, token } = useAuth();
@@ -35,6 +35,7 @@ export default function BookingStep({ sel, q }: { sel: Selection; q: Quote }) {
   const phoneShown: Phone = { iso: phone.iso || country || region, number: phone.number };
   const countryName = countryByIso(country)?.name ?? "";
   const [files, setFiles] = useState<File[]>([]);
+  const [feedback, setFeedback] = useState<File[]>([]);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState("");
   // prefill from the profile saved at sign-up
@@ -56,18 +57,8 @@ export default function BookingStep({ sel, q }: { sel: Selection; q: Quote }) {
 
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => setF({ ...f, [k]: e.target.value });
 
-  function addFiles(list: FileList | null) {
-    if (!list) return;
-    const next = [...files];
-    for (const file of Array.from(list)) {
-      if (file.size > MAX) { setErr(`“${file.name}” is over 25 MB.`); continue; }
-      if (next.length < 10) next.push(file);
-    }
-    setFiles(next);
-  }
-
   const text = (orderId?: string) =>
-    orderText(sel, q, money(q.totalGBP), { ...f, whatsapp: phoneToString(phoneShown), country: countryName, email: user?.email ?? "", files: files.map((x) => x.name), orderId });
+    orderText(sel, q, money(q.totalGBP), { ...f, whatsapp: phoneToString(phoneShown), country: countryName, email: user?.email ?? "", files: files.map((x) => x.name), feedback: feedback.map((x) => x.name), orderId });
 
   async function place(e: React.FormEvent) {
     e.preventDefault();
@@ -79,21 +70,25 @@ export default function BookingStep({ sel, q }: { sel: Selection; q: Quote }) {
     if (pe) v.phone = pe;
     setErrs(v);
     if (Object.keys(v).length) return;
-    setErr(""); setBusy("Creating your order…");
+    setErr("");
     try {
+      // Files go straight to Cloudinary first; the order then just refers to them.
+      const all = [...files.map((file) => ({ file, group: "files" as const })), ...feedback.map((file) => ({ file, group: "feedback" as const }))];
+      const uploaded: { files: Uploaded[]; feedback: Uploaded[] } = { files: [], feedback: [] };
+      for (let i = 0; i < all.length; i++) {
+        setBusy(`Uploading file ${i + 1} of ${all.length}…`);
+        const up = await uploadToCloudinary(all[i].file, await token(), "order");
+        uploaded[all[i].group].push(up);
+      }
+      setBusy("Creating your order…");
       const res = await fetch("/api/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${await token()}` },
-        body: JSON.stringify({ ...f, whatsapp: phoneToString(phoneShown), country: countryName, selection: sel, currency, files: files.map((x) => ({ name: x.name, size: x.size })) }),
+        body: JSON.stringify({ ...f, whatsapp: phoneToString(phoneShown), country: countryName, selection: sel, currency, files: uploaded.files, feedbackFiles: uploaded.feedback }),
       });
       const d = await res.json();
       if (!res.ok) throw new Error(d.error);
-      let failed = 0;
-      for (let i = 0; i < files.length; i++) {
-        setBusy(`Uploading file ${i + 1} of ${files.length}…`);
-        try { await uploadBytes(ref(fbStorage(), d.order.files[i].path), files[i]); } catch { failed++; }
-      }
-      router.push(`/dashboard/orders/${d.order.id}?new=1${failed ? `&failed=${failed}` : ""}`);
+      router.push(`/dashboard/orders/${d.order.id}?new=1`);
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Something went wrong."); setBusy("");
     }
@@ -148,29 +143,12 @@ export default function BookingStep({ sel, q }: { sel: Selection; q: Quote }) {
       </div>
 
       {uploadsOn ? (
-      <div className="mt-6">
-        <label className="label">Helping material (instructions, existing document, guidelines, previous feedback)</label>
-        <label className="flex cursor-pointer flex-col items-center gap-1 rounded-2xl border-2 border-dashed border-line p-6 text-center transition hover:border-brand hover:bg-brand-soft">
-          <Paperclip className="text-brand" />
-          <span className="text-sm font-medium">Tap to add files</span>
-          <span className="text-xs text-muted">Up to 10 files, 25 MB each</span>
-          <input type="file" multiple className="sr-only" onChange={(e) => { addFiles(e.target.files); e.target.value = ""; }} />
-        </label>
-        {files.length > 0 && (
-          <ul className="mt-3 space-y-2">
-            {files.map((file, i) => (
-              <motion.li initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} key={file.name + i} className="card flex items-center gap-3 px-4 py-2.5 text-sm">
-                <FileText size={18} className="shrink-0 text-brand" />
-                <span className="min-w-0 flex-1 truncate">{file.name}</span>
-                <span className="text-xs text-muted">{fmtSize(file.size)}</span>
-                <button type="button" aria-label={`Remove ${file.name}`} onClick={() => setFiles(files.filter((_, j) => j !== i))} className="text-muted hover:text-danger"><X size={16} /></button>
-              </motion.li>
-            ))}
-          </ul>
-        )}
-      </div>
+        <div className="mt-6 space-y-6">
+          <FileDropzone label="Helping material (instructions, existing document, guidelines)" hint="Up to 10 files, 10 MB each" files={files} onChange={setFiles} />
+          <FileDropzone images label="Previous marks & feedback (photos or screenshots)" hint="Up to 10 images, 10 MB each" files={feedback} onChange={setFeedback} />
+        </div>
       ) : (
-        <p className="mt-6 rounded-xl bg-brand-soft p-4 text-sm">Have instructions, guidelines or an existing document? After placing your order, send the files on WhatsApp or email with your order ID and we&apos;ll attach them to your order.</p>
+        <p className="mt-6 rounded-xl bg-brand-soft p-4 text-sm">Have instructions, guidelines, an existing document, or images of your previous marks and feedback? After placing your order, send them on WhatsApp or email with your order ID and we&apos;ll attach them to your order.</p>
       )}
 
       {err && <p className="mt-4 text-sm text-danger">{err}</p>}

@@ -8,6 +8,7 @@ const inter = Inter({ variable: "--font-inter", subsets: ["latin"] });
 const serif = Newsreader({ variable: "--font-serif", subsets: ["latin"], style: ["normal", "italic"] });
 
 export const metadata: Metadata = {
+  openGraph: { images: ["/logo.png"] },
   title: "ScholaryPath – Academic & Research Support",
   description: "Instant quotes for editing, proofreading, research support, technical guidance and professional documents. Get your price in under a minute.",
 };

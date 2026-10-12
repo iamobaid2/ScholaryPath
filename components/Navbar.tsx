@@ -5,12 +5,13 @@ import { Menu, X } from "lucide-react";
 import Logo from "./Logo";
 import CurrencySelect from "./CurrencySelect";
 import WhatsAppIcon from "./WhatsAppIcon";
-import { useAuth } from "./Providers";
+import { useAuth, useContent } from "./Providers";
 import { waLink } from "@/lib/whatsapp";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const { user, isAdmin, logout } = useAuth();
+  const { showcase, reviewCount } = useContent();
 
   // marketing links are for visitors only; signed-in users get their own menu
   const links = user
@@ -20,6 +21,8 @@ export default function Navbar() {
     : [
         { href: "/#services", label: "Services" },
         { href: "/#how", label: "How it works" },
+        ...(showcase.length ? [{ href: "/#work", label: "Our work" }] : []),
+        ...(reviewCount ? [{ href: "/#reviews", label: "Reviews" }] : []),
         { href: "/#faq", label: "FAQ" },
       ];
 
@@ -46,7 +49,7 @@ export default function Navbar() {
           ) : (
             <>
               <Link href="/login" className="btn btn-ghost btn-sm">Sign in</Link>
-              <Link href="/quote" className="btn btn-primary btn-sm">Get instant quote</Link>
+              <Link href="/quote" className="btn btn-primary btn-sm">Check Pricing Now</Link>
             </>
           )}
         </div>
@@ -74,7 +77,7 @@ export default function Navbar() {
               <button className="btn btn-ghost w-full" onClick={() => { logout(); close(); }}>Sign out</button>
             ) : (
               <>
-                <Link href="/quote" onClick={close} className="btn btn-primary w-full">Get instant quote</Link>
+                <Link href="/quote" onClick={close} className="btn btn-primary w-full">Check Pricing Now</Link>
                 <Link href="/login" onClick={close} className="btn btn-ghost w-full">Sign in</Link>
               </>
             )}

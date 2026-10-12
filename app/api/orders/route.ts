@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { adminDb } from "@/lib/firebase-admin";
 import { handle, HttpError, requireClient } from "@/lib/server";
 import { CURRENCIES, LEVELS, COMPLEXITY, DEADLINES, findOption, type Currency } from "@/lib/catalog";
-import { calculate, convert, isWeekTimeline, mergePricing, needsWords, type Selection } from "@/lib/pricing";
+import { asksDocumentation, calculate, convert, isWeekTimeline, mergePricing, needsWords, type Item, type Selection } from "@/lib/pricing";
 import type { Order, OrderFile } from "@/lib/types";
 import { notifyNewOrder } from "@/lib/mailer";
 
@@ -24,22 +24,27 @@ export function POST(req: Request) {
     if (!b) throw new HttpError(400, "Invalid request.");
 
     const s = b.selection ?? {};
-    const sel: Selection = {
-      level: str(s.level, 30),
-      course: str(s.course, 120),
-      service: str(s.service, 60),
-      wordIndex: Number.isInteger(s.wordIndex) ? s.wordIndex : null,
-      complexity: str(s.complexity, 30),
-      deadline: str(s.deadline, 30),
-      extras: Array.isArray(s.extras) ? s.extras.map((x: unknown) => str(x, 30)).slice(0, 20) : [],
-      code: str(s.code, 30),
-    };
-    const opt = findOption(sel.service);
-    if (!opt || !LEVELS.some((l) => l.id === sel.level) || !COMPLEXITY.some((c) => c.id === sel.complexity) || !sel.course)
-      throw new HttpError(400, "Your quote is incomplete.");
-    const dl = DEADLINES.find((d) => d.id === sel.deadline);
-    if (!dl || (dl.group === "weeks") !== isWeekTimeline(sel.service)) throw new HttpError(400, "Please choose a valid deadline.");
-    if (needsWords(sel.service) && sel.wordIndex === null) throw new HttpError(400, "Please choose a word count.");
+    const rawItems: unknown[] = Array.isArray(s.items) ? s.items.slice(0, 8) : [];
+    const items: Item[] = rawItems.map((r) => {
+      const x = (r ?? {}) as Record<string, unknown>;
+      return {
+        service: str(x.service, 60),
+        wordIndex: Number.isInteger(x.wordIndex) ? (x.wordIndex as number) : null,
+        complexity: str(x.complexity, 30),
+        deadline: str(x.deadline, 30),
+        documentation: x.documentation === "yes" || x.documentation === "no" ? x.documentation : "",
+      };
+    });
+    const sel: Selection = { level: str(s.level, 30), course: str(s.course, 120), items, code: str(s.code, 30) };
+    if (!items.length || !LEVELS.some((l) => l.id === sel.level) || !sel.course) throw new HttpError(400, "Your quote is incomplete.");
+    for (const it of items) {
+      const opt = findOption(it.service);
+      if (!opt || !COMPLEXITY.some((c) => c.id === it.complexity)) throw new HttpError(400, "Your quote is incomplete.");
+      const dl = DEADLINES.find((d) => d.id === it.deadline);
+      if (!dl || (dl.group === "weeks") !== isWeekTimeline(it.service)) throw new HttpError(400, "Please choose a valid deadline.");
+      if (asksDocumentation(it.service) && !it.documentation) throw new HttpError(400, "Please say whether you need documentation.");
+      if (needsWords(it.service, it.documentation) && it.wordIndex === null) throw new HttpError(400, "Please choose a word count.");
+    }
 
     const currency: Currency = CURRENCIES.includes(b.currency) ? b.currency : "GBP";
 
@@ -61,10 +66,22 @@ export function POST(req: Request) {
     });
     const id = `EDU${new Date().getFullYear()}${String(n).padStart(4, "0")}`;
 
-    const files: OrderFile[] = (Array.isArray(b.files) ? b.files : []).slice(0, 15).map((f: { name?: string; size?: number }, i: number) => {
-      const safe = str(f.name, 120).replace(/[^\w.\- ]+/g, "_") || "file";
-      return { name: str(f.name, 120) || "file", size: Number(f.size) || 0, path: `orders/${u.uid}/${id}/${i}-${safe}` };
-    });
+    // Files were already uploaded straight to Cloudinary by the browser. Only accept ones from this
+    // client's own folder, so an order can't claim somebody else's upload.
+    const prefix = `scholarlypath/orders/${u.uid}/`;
+    const toFiles = (list: unknown, max: number): OrderFile[] =>
+      (Array.isArray(list) ? list : [])
+        .slice(0, max)
+        .filter((f: { publicId?: string }) => typeof f?.publicId === "string" && f.publicId.startsWith(prefix))
+        .map((f: { name?: string; size?: number; publicId: string; resourceType?: string }) => ({
+          name: str(f.name, 120) || "file",
+          size: Number(f.size) || 0,
+          publicId: f.publicId,
+          resourceType: ["image", "raw", "video"].includes(String(f.resourceType)) ? String(f.resourceType) : "image",
+        }));
+    const files = toFiles(b.files, 15);
+    // Images of earlier marks and tutor feedback, kept apart from the brief itself.
+    const feedbackFiles = toFiles(b.feedbackFiles, 10);
 
     const now = new Date().toISOString();
     const order: Order = {
@@ -79,7 +96,7 @@ export function POST(req: Request) {
       notes: str(b.notes, 2000),
       selection: sel,
       levelLabel: LEVELS.find((l) => l.id === sel.level)!.label,
-      serviceLabel: opt.label,
+      serviceLabel: q.lines.map((l) => l.label).join(" + "),
       words: q.words,
       eta: q.eta,
       currency,
@@ -90,6 +107,7 @@ export function POST(req: Request) {
       paid: false,
       timeline: [{ stage: "received", at: now }],
       files,
+      feedbackFiles,
       createdAt: now,
     };
     await db.collection("orders").doc(id).set(order);

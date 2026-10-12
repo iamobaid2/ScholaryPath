@@ -4,8 +4,8 @@ import { animate } from "motion/react";
 import { Clock, Tag } from "lucide-react";
 import { useShop } from "../Providers";
 import CurrencySelect from "../CurrencySelect";
-import { COMPLEXITY, DEADLINES, EXTRAS, LEVELS, findOption } from "@/lib/catalog";
-import type { Quote, Selection } from "@/lib/pricing";
+import { COMPLEXITY, DEADLINES, LEVELS, findOption } from "@/lib/catalog";
+import type { Item, Quote } from "@/lib/pricing";
 import { wordLabel } from "./helpers";
 
 function AnimatedMoney({ value, className }: { value: number; className?: string }) {
@@ -20,19 +20,17 @@ function AnimatedMoney({ value, className }: { value: number; className?: string
   return <span className={className}>{money(shown)}</span>;
 }
 
-export default function PricePanel({ sel, q, complete }: { sel: Selection; q: Quote; complete: boolean }) {
-  const { money, openDiscount, cfg } = useShop();
-  const rows: [string, string][] = [
-    ["Level", LEVELS.find((l) => l.id === sel.level)?.label ?? ""],
-    ["Course", sel.course],
-    ["Service", findOption(sel.service)?.label ?? ""],
-    ["Length", wordLabel(sel)],
-    ["Complexity", COMPLEXITY.find((c) => c.id === sel.complexity)?.label ?? ""],
-    ["Deadline", DEADLINES.find((d) => d.id === sel.deadline)?.time ?? ""],
-    ["Extras", sel.extras.map((e) => EXTRAS.find((x) => x.id === e)?.label).join(", ")],
-  ];
-  const visible = rows.filter(([, v]) => v);
+export default function PricePanel({ level, course, items, draft, q, complete }: { level: string; course: string; items: Item[]; draft: Item; q: Quote; complete: boolean }) {
+  const { money, openDiscount, cfg, code } = useShop();
   const pct = cfg.discountPercent;
+  const head: [string, string][] = [
+    ["Level", LEVELS.find((l) => l.id === level)?.label ?? ""],
+    ["Course", course],
+  ];
+
+  const describe = (it: Item) =>
+    [wordLabel(it), COMPLEXITY.find((c) => c.id === it.complexity)?.label, DEADLINES.find((d) => d.id === it.deadline)?.time].filter(Boolean).join(" · ");
+  const draftOpt = findOption(draft.service);
 
   return (
     <div className="card p-5" style={{ boxShadow: "var(--shadow)" }}>
@@ -42,16 +40,38 @@ export default function PricePanel({ sel, q, complete }: { sel: Selection; q: Qu
       </div>
 
       <div className="mt-4 space-y-2 text-sm">
-        {visible.length === 0 && <p className="text-muted">Your choices will appear here as you go.</p>}
-        {visible.map(([k, v]) => (
+        {head.every(([, v]) => !v) && items.length === 0 && !draft.service && <p className="text-muted">Your choices will appear here as you go.</p>}
+        {head.filter(([, v]) => v).map(([k, v]) => (
           <div key={k} className="flex justify-between gap-4"><span className="text-muted">{k}</span><span className="text-right font-medium">{v}</span></div>
         ))}
       </div>
 
+      {(items.length > 0 || draftOpt) && (
+        <ul className="mt-3 space-y-2 border-t border-line pt-3 text-sm">
+          {items.map((it, i) => (
+            <li key={i} className="flex justify-between gap-3">
+              <div className="min-w-0">
+                <div className="font-medium">{q.lines[i]?.label ?? findOption(it.service)?.label}</div>
+                <div className="text-xs text-muted">{describe(it)}</div>
+              </div>
+              <div className="shrink-0 font-medium">{q.lines[i] ? money(q.lines[i].subtotal) : ""}</div>
+            </li>
+          ))}
+          {draftOpt && (
+            <li className="flex justify-between gap-3 rounded-lg bg-brand-soft px-3 py-2">
+              <div className="min-w-0">
+                <div className="font-medium">{draftOpt.label}{draft.documentation === "yes" ? " + documentation" : ""}</div>
+                <div className="text-xs text-muted">{describe(draft) || "Choosing…"}</div>
+              </div>
+              <div className="shrink-0 text-xs text-muted">in progress</div>
+            </li>
+          )}
+        </ul>
+      )}
+
       <div className="mt-5 border-t border-line pt-4">
         {q.ok ? (
           <>
-            {q.extrasTotal > 0 && <div className="mb-1 flex justify-between text-sm text-muted"><span>Add-ons</span><span>{money(q.extrasTotal)}</span></div>}
             {q.discount > 0 && <div className="mb-1 flex justify-between text-sm text-ok"><span>Student discount ({pct}%)</span><span>−{money(q.discount)}</span></div>}
             <div className="flex items-end justify-between">
               <span className="text-sm text-muted">{complete ? "Estimated price" : "Starting from"}</span>
@@ -66,7 +86,7 @@ export default function PricePanel({ sel, q, complete }: { sel: Selection; q: Qu
 
       <div className="mt-4">
         {q.discount > 0 ? (
-          <div className="flex items-center gap-2 rounded-xl bg-ok/10 px-3 py-2 text-xs text-ok"><Tag size={14} /> Code {sel.code.toUpperCase()} applied</div>
+          <div className="flex items-center gap-2 rounded-xl bg-ok/10 px-3 py-2 text-xs text-ok"><Tag size={14} /> Code {code.toUpperCase()} applied</div>
         ) : (
           <button onClick={openDiscount} className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-line px-3 py-2 text-xs text-muted transition hover:border-brand hover:text-brand"><Tag size={14} /> Student? Claim {pct}% off</button>
         )}

@@ -2,7 +2,8 @@
 import Link from "next/link";
 import Logo from "./Logo";
 import { useAuth } from "./Providers";
-import { BRAND, CONTACT_EMAIL, WHATSAPP_DISPLAY } from "@/lib/catalog";
+import FacebookIcon from "./FacebookIcon";
+import { BRAND, CONTACT_EMAIL, FACEBOOK_URL, WHATSAPP_DISPLAY } from "@/lib/catalog";
 import { waLink } from "@/lib/whatsapp";
 
 export default function Footer() {
@@ -18,10 +19,11 @@ export default function Footer() {
           <div className="mb-2 font-semibold">Contact</div>
           <a className="block text-muted hover:text-fg" href={waLink()} target="_blank" rel="noopener noreferrer">WhatsApp {WHATSAPP_DISPLAY}</a>
           <a className="block text-muted hover:text-fg" href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
+          <a className="mt-3 inline-flex items-center gap-2 text-muted hover:text-fg" href={FACEBOOK_URL} target="_blank" rel="noopener noreferrer"><FacebookIcon size={16} /> Follow us on Facebook</a>
         </div>
         <div className="text-sm">
           <div className="mb-2 font-semibold">Explore</div>
-          <Link className="block text-muted hover:text-fg" href="/quote">Get instant quote</Link>
+          <Link className="block text-muted hover:text-fg" href="/quote">Check Pricing Now</Link>
           {user ? <Link className="block text-muted hover:text-fg" href="/dashboard">My orders</Link> : <Link className="block text-muted hover:text-fg" href="/#faq">FAQ</Link>}
         </div>
       </div>

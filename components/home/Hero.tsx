@@ -9,7 +9,7 @@ import { calculate } from "@/lib/pricing";
 
 export default function Hero() {
   const { money, cfg } = useShop();
-  const sample = calculate({ level: "master", course: "", service: "edit-academic", wordIndex: 4, complexity: "standard", deadline: "fast", extras: [], code: "" }, cfg).totalGBP;
+  const sample = calculate({ level: "master", course: "", items: [{ service: "edit-academic", wordIndex: 3, complexity: "standard", deadline: "fast", documentation: "" }], code: "" }, cfg).totalGBP;
   const item = (i: number) => ({ initial: { opacity: 0, y: 24 }, animate: { opacity: 1, y: 0 }, transition: { duration: 0.7, delay: 0.1 + i * 0.12, ease: [0.22, 1, 0.36, 1] as const } });
   return (
     <section className="relative overflow-hidden">
@@ -26,7 +26,7 @@ export default function Hero() {
             Expert editing, proofreading, formatting, research consultation, technical guidance and professional document services for students, researchers and professionals worldwide.
           </motion.p>
           <motion.div {...item(3)} className="mt-8 flex flex-col gap-3 sm:flex-row">
-            <Link href="/quote" className="btn btn-primary w-full sm:w-auto">Get instant quote <ArrowRight size={18} /></Link>
+            <Link href="/quote" className="btn btn-primary w-full sm:w-auto">Check Pricing Now <ArrowRight size={18} /></Link>
             <a href={waLink()} target="_blank" rel="noopener noreferrer" className="btn btn-ghost w-full sm:w-auto"><WhatsAppIcon size={18} /> Talk with an expert</a>
           </motion.div>
           <motion.div {...item(4)} className="mt-8 flex flex-wrap gap-x-6 gap-y-2 text-sm text-muted">
@@ -39,7 +39,7 @@ export default function Hero() {
           <motion.div animate={{ y: [0, -10, 0] }} transition={{ duration: 6, repeat: Infinity, ease: "easeInOut" }} className="card p-6" style={{ boxShadow: "var(--shadow)" }}>
             <div className="text-xs font-semibold uppercase tracking-wider text-muted">Sample quote</div>
             <div className="mt-3 space-y-3 text-sm">
-              {[["Level", "Master's"], ["Service", "Academic Editing"], ["Length", "10,000 words"], ["Deadline", "Fast · 3–7 days"]].map(([k, v]) => (
+              {[["Level", "Master's"], ["Service", "Academic Editing"], ["Length", "5,000 – 10,000 words"], ["Deadline", "Fast · 3–7 days"]].map(([k, v]) => (
                 <div key={k} className="flex justify-between border-b border-line pb-2"><span className="text-muted">{k}</span><span className="font-medium">{v}</span></div>
               ))}
             </div>

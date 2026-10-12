@@ -3,7 +3,7 @@ import { adminDb } from "./firebase-admin";
 import { HttpError } from "./server";
 import { STAGES, type StageId } from "./catalog";
 import type { Order } from "./types";
-import { notifyPaid } from "./mailer";
+import { notifyPaid, notifyStage } from "./mailer";
 
 export async function getOrder(id: string): Promise<Order> {
   const snap = await adminDb().collection("orders").doc(id).get();
@@ -18,6 +18,11 @@ export async function setStage(id: string, stage: StageId) {
   const timeline = o.timeline.filter((t) => t.stage !== stage);
   timeline.push({ stage, at: new Date().toISOString() });
   await adminDb().collection("orders").doc(id).update({ stage, timeline });
+  // Keep the client informed as their order moves along. "Order received" and "Payment confirmed"
+  // already have their own emails.
+  if (stage !== "received" && stage !== "payment" && o.stage !== stage) {
+    await notifyStage({ ...o, stage, timeline }, STAGES.find((s) => s.id === stage)?.label ?? stage);
+  }
 }
 
 export async function markPaid(id: string) {

@@ -44,9 +44,14 @@ function Detail() {
   if (err && !o) return <div className="mx-auto max-w-xl px-4 py-24 text-center"><p className="text-danger">{err}</p><Link href="/dashboard" className="btn btn-ghost mt-4">Back to orders</Link></div>;
   if (!o) return <Loader />;
 
+  // Orders placed before multi-service ordering have a single flat selection and no `items`.
+  const items = o.selection.items ?? [];
   const rows: [string, string][] = [
-    ["Service", o.serviceLabel], ["Level", o.levelLabel], ["Subject", o.selection.course],
-    ...(o.words ? ([["Word count", o.words.toLocaleString("en")]] as [string, string][]) : []),
+    ["Level", o.levelLabel],
+    ["Subject", o.selection.course],
+    ...(items.length > 1 || !items.length
+      ? ([["Services", o.serviceLabel]] as [string, string][])
+      : ([["Service", o.serviceLabel]] as [string, string][])),
     ["Expected completion", o.eta],
   ];
 

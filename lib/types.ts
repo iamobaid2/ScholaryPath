@@ -1,7 +1,8 @@
 import type { Currency, StageId } from "./catalog";
 import type { Selection } from "./pricing";
 
-export type OrderFile = { name: string; size: number; path: string };
+/** A client file held in Cloudinary. `path` is the legacy Firebase Storage path of earlier orders. */
+export type OrderFile = { name: string; size: number; publicId?: string; resourceType?: string; path?: string };
 
 export type Order = {
   id: string;
@@ -26,6 +27,8 @@ export type Order = {
   paid: boolean;
   timeline: { stage: StageId; at: string }[];
   files: OrderFile[];
+  /** Images of previous marks and feedback (optional on orders created before this existed). */
+  feedbackFiles?: OrderFile[];
   adminNote?: string;
   createdAt: string;
 };
