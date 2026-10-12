@@ -196,6 +196,8 @@ export type StageId = (typeof STAGES)[number]["id"];
 export const DISCOUNT_CODE = "SCHOLAR15";
 export const WHATSAPP_NUMBER = "923207201065";
 export const WHATSAPP_DISPLAY = "+92 320 7201065";
-export const CONTACT_EMAIL = process.env.NEXT_PUBLIC_CONTACT_EMAIL || "scholarlypath2@gmail.com";
+// Fixed in code rather than read from an environment variable: NEXT_PUBLIC_ values are baked in at build
+// time, so a stale value on the host kept showing an old address after the code was corrected.
+export const CONTACT_EMAIL = "scholarlypath2@gmail.com";
 export const FACEBOOK_URL = "https://www.facebook.com/share/1EUDFuVJrV/";
 export const BRAND = "ScholaryPath";
