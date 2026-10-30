@@ -1,6 +1,6 @@
 import Hero from "@/components/home/Hero";
 import { FaqSection, FinalCta, HowItWorks, Services } from "@/components/home/Sections";
-import { ReviewsSection, ShowcaseSection } from "@/components/home/Work";
+import { ProjectsSection, ReviewsSection, ShowcaseSection } from "@/components/home/Work";
 
 export default function Home() {
   return (
@@ -9,6 +9,7 @@ export default function Home() {
       <Services />
       <HowItWorks />
       <ShowcaseSection />
+      <ProjectsSection />
       <ReviewsSection />
       <FaqSection />
       <FinalCta />

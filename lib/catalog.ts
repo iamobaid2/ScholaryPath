@@ -32,6 +32,8 @@ export type ServiceOption = {
   levelScaled?: boolean;
   /** Technical services: the client is asked whether they also need written documentation. */
   docs?: boolean;
+  /** Longer explanation, shown in an info tooltip. */
+  info?: string;
 };
 export type ServiceCategory = { id: string; label: string; blurb: string; icon: string; options: ServiceOption[] };
 
@@ -134,6 +136,49 @@ export const SERVICE_CATEGORIES: ServiceCategory[] = [
     ],
   },
 ];
+
+// What each service covers, for the info icon on its card.
+const SUPPORT = "Guidance, feedback and model material to support your learning.";
+const INFO: Record<string, string> = {
+  essay: `A written essay on your topic. ${SUPPORT} Pick the length next.`,
+  assignment: `A general assignment, such as a question set or short report. ${SUPPORT}`,
+  coursework: `Coursework with several parts or a marking rubric. ${SUPPORT}`,
+  "research-paper": `A paper built around a research question, with sources. ${SUPPORT}`,
+  "case-study": "Analysis of a real or fictional case, usually with recommendations.",
+  report: "A structured report, such as a business, lab or technical report.",
+  "literature-review": "A review of existing research on a topic, organised by theme.",
+  "annotated-bibliography": "A list of sources, each with a short summary and evaluation.",
+  presentation: "Slides for a presentation, with speaker notes where needed.",
+  "thesis-proposal": "The plan for your thesis: question, aims, background and method.",
+  "dissertation-proposal": "The plan for your dissertation: question, aims, background and method.",
+  "lit-review-chapter": "The literature review chapter of your thesis or dissertation. The range is the length of your whole thesis.",
+  "methodology-chapter": "The chapter explaining how your research was done. The range is the length of your whole thesis.",
+  "results-chapter": "The chapter presenting your findings. The range is the length of your whole thesis.",
+  "discussion-chapter": "The chapter interpreting your findings. The range is the length of your whole thesis.",
+  "thesis-formatting": "Layout to your university's rules: headings, numbering, contents and references.",
+  "thesis-full": "Support for the whole thesis from start to finish. Choose the range that matches its final length.",
+  "thesis-with-project": "A thesis that includes a practical project (software, a design, an experiment). Covers the written thesis and the project together.",
+  "dissertation-full": "Support for the whole dissertation from start to finish. Choose the range that matches its final length.",
+  "dissertation-with-project": "A dissertation that includes a practical project. Covers the written dissertation and the project together.",
+  "phd-thesis": "Support for a doctoral thesis. Choose the range that matches its final length.",
+  "edit-basic": "Corrects spelling, grammar and punctuation. Doesn't change structure or wording.",
+  "edit-academic": "Basic editing plus clearer structure, flow and academic tone.",
+  "edit-premium": "The full treatment: academic editing, formatting and a check of your referencing.",
+  "methodology-consult": "A one-to-one discussion of which research methods suit your question.",
+  "research-design": "Help shaping your study: sample, variables, data collection and analysis plan.",
+  statistics: "Choosing and running the right statistical tests, and understanding the output.",
+  "data-interpretation": "Making sense of your results and explaining what they mean.",
+  "journal-formatting": "Formatting a finished paper to a journal's author guidelines.",
+  manuscript: "Preparing a paper for submission to a journal.",
+  "cv-writing": "A new CV written for you from your background and the role you want.",
+  "cv-editing": "Improving and tidying a CV you already have.",
+  "cover-letter": "A cover letter tailored to a job or programme.",
+  sop: "A statement of purpose for a university application.",
+  "personal-statement": "A personal statement for a university or scholarship application.",
+  linkedin: "A rewritten LinkedIn headline, summary and experience section.",
+};
+const TECH_INFO = "Hands-on help with this. After choosing it we'll ask whether you also want written documentation (report, user guide or design notes).";
+for (const c of SERVICE_CATEGORIES) for (const o of c.options) o.info = INFO[o.id] ?? (o.docs ? TECH_INFO : undefined);
 
 export const ALL_OPTIONS = SERVICE_CATEGORIES.flatMap((c) => c.options);
 export const findOption = (id: string) => ALL_OPTIONS.find((o) => o.id === id);

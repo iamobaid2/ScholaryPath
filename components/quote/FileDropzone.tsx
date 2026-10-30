@@ -2,11 +2,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { motion } from "motion/react";
 import { FileText, ImagePlus, Paperclip, X } from "lucide-react";
+import InfoHint from "../ui/InfoHint";
 
 const fmtSize = (n: number) => (n > 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
 type Props = {
   label: string;
+  /** Longer explanation shown in an info tooltip next to the label. */
+  info?: string;
   hint: string;
   files: File[];
   onChange: (files: File[]) => void;
@@ -16,7 +19,7 @@ type Props = {
   maxMb?: number;
 };
 
-export default function FileDropzone({ label, hint, files, onChange, images = false, max = 10, maxMb = 10 }: Props) {
+export default function FileDropzone({ label, info, hint, files, onChange, images = false, max = 10, maxMb = 10 }: Props) {
   const [err, setErr] = useState("");
 
   // Thumbnails are object URLs; revoke them when the selection changes or the component goes away.
@@ -39,7 +42,7 @@ export default function FileDropzone({ label, hint, files, onChange, images = fa
   const Icon = images ? ImagePlus : Paperclip;
   return (
     <div>
-      <label className="label">{label}</label>
+      <div className="mb-1.5 flex items-center gap-2"><span className="text-sm font-semibold">{label}</span>{info && <InfoHint label={`About ${label}`} align="left">{info}</InfoHint>}</div>
       <label className="flex cursor-pointer flex-col items-center gap-1 rounded-xl border-2 border-dashed border-line p-5 text-center transition hover:border-brand hover:bg-brand-soft">
         <Icon className="text-brand" />
         <span className="text-sm font-medium">{images ? "Tap to add images" : "Tap to add files"}</span>

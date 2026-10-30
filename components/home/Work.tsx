@@ -2,10 +2,11 @@
 import { useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "motion/react";
-import { ExternalLink, FileText, Star, X } from "lucide-react";
+import { ExternalLink, FileText, FolderKanban, Star, X } from "lucide-react";
 import Reveal from "../Reveal";
 import { useAuth, useContent } from "../Providers";
 import { SHOWCASE_KINDS, type ShowcaseItem } from "@/lib/public-types";
+import { DUMMY_PROJECTS } from "@/lib/dummy-projects";
 
 /** A first-page picture of an uploaded PDF, using Cloudinary's page transformation. */
 const pdfPreview = (url: string) => url.replace("/upload/", "/upload/pg_1,w_700,h_460,c_fill,g_north/").replace(/\.pdf($|\?)/i, ".jpg$1");
@@ -21,7 +22,9 @@ export function Stars({ value, size = 16 }: { value: number; size?: number }) {
 
 /** The owner's showcase: students' marks and high-scoring work. Hidden until something is published. */
 export function ShowcaseSection() {
-  const { showcase } = useContent();
+  const { showcase: all } = useContent();
+  // Projects have their own section below, so they are not repeated here.
+  const showcase = all.filter((s) => s.kind !== "project");
   const kinds = SHOWCASE_KINDS.filter((k) => showcase.some((s) => s.kind === k.id));
   const [tab, setTab] = useState("");
   const [zoom, setZoom] = useState<ShowcaseItem | undefined>(undefined);
@@ -99,6 +102,55 @@ export function ShowcaseSection() {
           </motion.div>
         )}
       </AnimatePresence>
+    </section>
+  );
+}
+
+/**
+ * Projects we've delivered. Real projects (published in /admin → Showcase) take over as soon as
+ * there is one; until then a few placeholders from lib/dummy-projects.ts fill the section.
+ */
+export function ProjectsSection() {
+  const { showcase } = useContent();
+  const real = showcase.filter((s) => s.kind === "project");
+  const usingPlaceholders = real.length === 0;
+  const cards = usingPlaceholders
+    ? DUMMY_PROJECTS.map((p) => ({ key: p.title, title: p.title, category: p.category, summary: p.summary, tags: p.tags, imageUrl: "", fileUrl: "" }))
+    : real.map((p) => ({ key: p.id, title: p.title, category: p.subject || "Project", summary: p.description, tags: [p.level, p.grade].filter(Boolean), imageUrl: p.imageUrl, fileUrl: p.fileUrl }));
+
+  return (
+    <section id="projects" className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+      <Reveal>
+        <h2 className="text-3xl sm:text-4xl">Projects we&apos;ve <span className="accent">delivered</span></h2>
+        <p className="mt-3 max-w-2xl text-muted">A selection of the software, design, data and research projects we&apos;ve supported across subjects.</p>
+      </Reveal>
+      <ul className="mt-8 grid gap-4 md:grid-cols-2">
+        {cards.map((p) => (
+          <Reveal key={p.key}>
+            <li className="card flex h-full gap-4 p-5">
+              {p.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- remote Cloudinary image
+                <img src={thumb(p.imageUrl)} alt="" loading="lazy" className="h-16 w-16 shrink-0 rounded-lg bg-surface-2 object-cover" />
+              ) : (
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-brand-soft text-brand"><FolderKanban size={22} /></span>
+              )}
+              <div className="min-w-0">
+                <div className="text-xs font-medium uppercase tracking-wider text-brand-2">{p.category}</div>
+                <h3 className="mt-0.5 text-lg">{p.title}</h3>
+                {p.summary && <p className="mt-1 text-sm text-muted">{p.summary}</p>}
+                {p.tags.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {p.tags.map((t) => (<span key={t} className="rounded-md bg-surface-2 px-2 py-0.5 text-xs text-muted">{t}</span>))}
+                  </div>
+                )}
+                {p.fileUrl && (
+                  <a href={p.fileUrl} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-1.5 text-sm font-medium text-brand hover:underline"><FileText size={15} /> View PDF <ExternalLink size={12} /></a>
+                )}
+              </div>
+            </li>
+          </Reveal>
+        ))}
+      </ul>
     </section>
   );
 }

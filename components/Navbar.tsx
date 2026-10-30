@@ -21,7 +21,8 @@ export default function Navbar() {
     : [
         { href: "/#services", label: "Services" },
         { href: "/#how", label: "How it works" },
-        ...(showcase.length ? [{ href: "/#work", label: "Our work" }] : []),
+        ...(showcase.some((x) => x.kind !== "project") ? [{ href: "/#work", label: "Our work" }] : []),
+        { href: "/#projects", label: "Projects" },
         ...(reviewCount ? [{ href: "/#reviews", label: "Reviews" }] : []),
         { href: "/#faq", label: "FAQ" },
       ];

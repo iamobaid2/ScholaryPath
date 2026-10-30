@@ -9,6 +9,7 @@ import FileDropzone from "./FileDropzone";
 import Loader from "../Loader";
 import CountrySelect from "../ui/CountrySelect";
 import PhoneInput from "../ui/PhoneInput";
+import { Field, StepHeading } from "./FormBits";
 import useRegion from "../ui/useRegion";
 import { countryByIso } from "@/lib/countries";
 import { phoneToString, validatePhone, type Phone } from "@/lib/validation";
@@ -19,7 +20,6 @@ import type { Quote, Selection } from "@/lib/pricing";
 import { waLink } from "@/lib/whatsapp";
 import { orderText } from "./helpers";
 
-const uploadsOn = process.env.NEXT_PUBLIC_ENABLE_UPLOADS === "true";
 
 type Uploaded = Awaited<ReturnType<typeof uploadToCloudinary>>;
 
@@ -38,6 +38,11 @@ export default function BookingStep({ sel, q }: { sel: Selection; q: Quote }) {
   const [feedback, setFeedback] = useState<File[]>([]);
   const [err, setErr] = useState("");
   const [busy, setBusy] = useState("");
+  // Asked of the server, which knows whether file storage is configured.
+  const [uploadsOn, setUploadsOn] = useState(false);
+  useEffect(() => {
+    fetch("/api/upload/status").then((r) => r.json()).then((d) => setUploadsOn(!!d.enabled)).catch(() => {});
+  }, []);
   // prefill from the profile saved at sign-up
   useEffect(() => {
     if (!user) return;
@@ -118,41 +123,70 @@ export default function BookingStep({ sel, q }: { sel: Selection; q: Quote }) {
     );
 
   return (
-    <form onSubmit={place} noValidate>
-      <h2 className="text-2xl font-semibold">Your details</h2>
-      <p className="mt-1 text-muted">Signed in as {user.email}</p>
-      <div className="mt-6 grid gap-4 sm:grid-cols-2">
-        <div>
-          <label className="label" htmlFor="b-name">Full name</label>
-          <input id="b-name" className={`input !h-11 !py-0 ${errs.name ? "!border-danger" : ""}`} value={f.name} onChange={set("name")} autoComplete="name" />
-          {errs.name && <p className="mt-1 text-xs text-danger">{errs.name}</p>}
-        </div>
-        <div>
-          <label className="label">Country</label>
-          <CountrySelect value={country} onChange={setCountry} invalid={!!errs.country} />
-          {errs.country && <p className="mt-1 text-xs text-danger">{errs.country}</p>}
-        </div>
-        <div className="sm:col-span-2">
-          <label className="label">WhatsApp number</label>
-          <PhoneInput value={phoneShown} onChange={setPhone} invalid={!!errs.phone} />
-          {errs.phone && <p className="mt-1 text-xs text-danger">{errs.phone}</p>}
-        </div>
-        <div><label className="label" htmlFor="b-uni">University</label><input id="b-uni" className="input !h-11 !py-0" value={f.university} onChange={set("university")} /></div>
-        <div><label className="label" htmlFor="b-deg">Degree</label><input id="b-deg" className="input !h-11 !py-0" value={f.degree} onChange={set("degree")} placeholder={sel.course} /></div>
-        <div className="sm:col-span-2"><label className="label" htmlFor="b-notes">Supervisor requirements / notes</label><textarea id="b-notes" className="input min-h-28" value={f.notes} onChange={set("notes")} placeholder="Anything we should know: formatting rules, supervisor feedback, topic ideas…" /></div>
+    <form onSubmit={place} noValidate className="space-y-10">
+      <div>
+        <h1 className="text-2xl font-semibold sm:text-3xl">Almost done</h1>
+        <p className="mt-1 text-muted">Signed in as {user.email}. It takes about a minute, and nothing is charged yet.</p>
       </div>
 
-      {uploadsOn ? (
-        <div className="mt-6 space-y-6">
-          <FileDropzone label="Helping material (instructions, existing document, guidelines)" hint="Up to 10 files, 10 MB each" files={files} onChange={setFiles} />
-          <FileDropzone images label="Previous marks & feedback (photos or screenshots)" hint="Up to 10 images, 10 MB each" files={feedback} onChange={setFeedback} />
+      <section className="card p-5">
+        <div className="flex items-center justify-between gap-4">
+          <h2 className="font-semibold">Your order</h2>
+          <span className="font-display text-xl font-semibold text-brand">{money(q.totalGBP)}</span>
         </div>
-      ) : (
-        <p className="mt-6 rounded-xl bg-brand-soft p-4 text-sm">Have instructions, guidelines, an existing document, or images of your previous marks and feedback? After placing your order, send them on WhatsApp or email with your order ID and we&apos;ll attach them to your order.</p>
-      )}
+        <ul className="mt-3 space-y-1 text-sm text-muted">
+          {q.lines.map((l, i) => (<li key={i} className="flex justify-between gap-3"><span className="truncate">{l.label}</span><span>{money(l.subtotal)}</span></li>))}
+          {q.discount > 0 && <li className="flex justify-between text-ok"><span>Student discount</span><span>−{money(q.discount)}</span></li>}
+        </ul>
+        <p className="mt-3 text-xs text-muted">Expected completion: {q.eta}. You&apos;ll pay securely after placing the order.</p>
+      </section>
 
-      {err && <p className="mt-4 text-sm text-danger">{err}</p>}
-      <button className="btn btn-primary mt-6 w-full sm:w-auto" disabled={!!busy || !firebaseConfigured}>{busy || `Place order · ${money(q.totalGBP)}`}</button>
+      <section>
+        <StepHeading n={1} title="Your details" info="We use these to confirm your order and keep you updated. Your WhatsApp number is the quickest way for us to reach you if we have a question." />
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Full name">
+            <input id="b-name" className={`input !h-11 !py-0 ${errs.name ? "!border-danger" : ""}`} value={f.name} onChange={set("name")} autoComplete="name" />
+            {errs.name && <p className="mt-1 text-xs text-danger">{errs.name}</p>}
+          </Field>
+          <Field label="Country">
+            <CountrySelect value={country} onChange={setCountry} invalid={!!errs.country} />
+            {errs.country && <p className="mt-1 text-xs text-danger">{errs.country}</p>}
+          </Field>
+          <div className="sm:col-span-2">
+            <Field label="WhatsApp number" info="Include your country code. We only use it for this order.">
+              <PhoneInput value={phoneShown} onChange={setPhone} invalid={!!errs.phone} />
+              {errs.phone && <p className="mt-1 text-xs text-danger">{errs.phone}</p>}
+            </Field>
+          </div>
+          <Field label="University"><input id="b-uni" className="input !h-11 !py-0" value={f.university} onChange={set("university")} placeholder="Optional" /></Field>
+          <Field label="Degree"><input id="b-deg" className="input !h-11 !py-0" value={f.degree} onChange={set("degree")} placeholder={sel.course} /></Field>
+          <div className="sm:col-span-2">
+            <Field label="Instructions or supervisor requirements" info="Anything that should shape the work: the question or brief, formatting rules, referencing style, word limits, supervisor feedback, or topic ideas.">
+              <textarea id="b-notes" className="input min-h-28" value={f.notes} onChange={set("notes")} placeholder="e.g. Harvard referencing, focus on UK retail, supervisor wants a stronger methodology section…" />
+            </Field>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <StepHeading n={2} title="Reference files" optional info="Anything that helps us get it right: your assignment brief, marking rubric, a draft, lecture notes, or earlier feedback. You can add files now or send them later on WhatsApp." />
+        {uploadsOn ? (
+          <div className="grid gap-6 lg:grid-cols-2">
+            <FileDropzone label="Files for this order" info="The brief, rubric, a draft, notes or readings. Any file type, up to 10 files of 10 MB each." hint="Up to 10 files, 10 MB each" files={files} onChange={setFiles} />
+            <FileDropzone images label="Previous marks & feedback" info="Photos or screenshots of earlier marks and your marker's comments. They help us match the standard and style your marker expects." hint="Up to 10 images, 10 MB each" files={feedback} onChange={setFeedback} />
+          </div>
+        ) : (
+          <p className="rounded-xl bg-brand-soft p-4 text-sm">File upload isn&apos;t available at the moment. After placing your order, send your files and images of previous marks on WhatsApp or email with your order ID and we&apos;ll attach them to your order.</p>
+        )}
+      </section>
+
+      <section>
+        <StepHeading n={3} title="Place your order" info="After you place the order you can pay securely online. We start once payment is confirmed, and you can follow every stage from your dashboard." />
+        {err && <p className="mb-4 rounded-lg bg-danger/10 px-3 py-2 text-sm text-danger" role="alert">{err}</p>}
+        <button className="btn btn-primary w-full sm:w-auto" disabled={!!busy || !firebaseConfigured}>{busy || `Place order · ${money(q.totalGBP)}`}</button>
+        <p className="mt-3 text-xs text-muted">By placing an order you agree to use our guidance and model material in line with your institution&apos;s academic policies.</p>
+      </section>
+
       {quick}
     </form>
   );
